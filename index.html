@@ -1760,24 +1760,23 @@
 
   /* CALENDAR OVERLAY (over the map area) */
   .cal-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    background: rgba(15, 15, 15, 0.35);
+    background: rgba(15, 15, 15, 0.5);
     z-index: 7000;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 20px;
   }
   .cal-overlay.open { display: flex; }
   .cal-overlay-inner {
-    width: calc(100% - 24px);
-    height: calc(100% - 24px);
-    max-width: 1400px;
+    width: 90vw;
+    height: 90vh;
+    max-width: none;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1924,13 +1923,13 @@
   .cal-add-slot .ico { font-size: 11px; flex-shrink: 0; }
   .cal-add-slot .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .cal-item {
-    display: flex; align-items: center; gap: 4px;
-    padding: 3px 5px;
-    font-size: 10.5px;
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 4px 6px;
+    font-size: 11px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 3px;
-    line-height: 1.25;
+    border-radius: 4px;
+    line-height: 1.3;
     min-width: 0;
     cursor: grab;
     transition: background 0.1s;
@@ -1940,6 +1939,10 @@
   .cal-item.dragging { opacity: 0.45; }
   .cal-item.drag-over-top { box-shadow: 0 -2px 0 var(--accent); }
   .cal-item.drag-over-bottom { box-shadow: 0 2px 0 var(--accent); }
+  .cal-item-row1 {
+    display: flex; align-items: center; gap: 4px;
+    min-width: 0;
+  }
   .cal-item-time {
     font-variant-numeric: tabular-nums;
     font-weight: 600;
@@ -1958,9 +1961,16 @@
     flex-shrink: 0;
   }
   .cal-item-name {
-    flex: 1; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     color: var(--text);
+    font-size: 11px;
+    line-height: 1.3;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    /* Allow wrapping up to 3 lines without truncation */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .cal-item.hotel { background: rgba(74, 143, 217, 0.06); }
   .cal-item.hotel .cal-item-tag { background: rgba(74, 143, 217, 0.18); color: #2c6ab0; }
@@ -4056,6 +4066,26 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
+// Pick a reasonable transit mode + duration between two coord-bearing items.
+// Used as default when GPT generates an itinerary so we don't end up with
+// "walk 10min" assigned to a 20km gap.
+function pickAutoTransit(fromLat, fromLng, toLat, toLng) {
+  if (fromLat == null || fromLng == null || toLat == null || toLng == null) {
+    return { mode: 'walk', duration: 10 };
+  }
+  const distKm = haversine({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
+  let mode;
+  if (distKm < 1) mode = 'walk';
+  else if (distKm < 4) mode = 'metro';
+  else if (distKm < 30) mode = 'taxi';
+  else mode = 'train';
+  const speeds = { walk: 4.5, metro: 25, taxi: 30, train: 50 };
+  const overhead = { walk: 0, metro: 5, taxi: 3, train: 10 };
+  const speed = speeds[mode] || 4.5;
+  const duration = Math.max(2, Math.round((distKm / speed) * 60 + (overhead[mode] || 0)));
+  return { mode, duration };
+}
+
 // ===== DAY FILTER =====
 function getGlobalDayNum(day, fallbackIdx) {
   // Prefer the global day number embedded in the day title (e.g., "Day 5 · 피렌체 도착")
@@ -4937,35 +4967,62 @@ async function openTransitMenu(el) {
   transitMenuEl.className = 'transit-menu';
   transitMenuEl.style.top = (rect.bottom + 4) + 'px';
   transitMenuEl.style.left = rect.left + 'px';
-  transitMenuEl.style.minWidth = '200px';
+  transitMenuEl.style.minWidth = '240px';
+
+  const MANUAL_MODES = [
+    { mode: 'walk',  label: '도보' },
+    { mode: 'metro', label: '지하철' },
+    { mode: 'taxi',  label: '택시' },
+    { mode: 'train', label: '기차' }
+  ];
+  const curMode = current && current.mode;
+  const isManual = current && current.manual;
+
   transitMenuEl.innerHTML = `
     <div style="padding: 6px 10px; font-size: 11px; color: var(--text-mute); border-bottom: 1px solid var(--border); margin-bottom: 4px;">
       ${from.name} → ${to.name}
     </div>
     <div style="padding: 4px 10px 6px; font-size: 10.5px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.04em;">
-      GPT 추천 (자동)
+      ${isManual ? '수동 선택' : 'GPT 추천 (자동)'}
     </div>
-    <div id="trMenuRecommend" style="padding: 10px 12px; font-size: 12px; color: var(--text-soft); text-align: center;">
+    <div id="trMenuRecommend" style="padding: 8px 12px; font-size: 12px; color: var(--text-soft); text-align: center;">
       <div class="skeleton" style="margin: 2px 0;"></div>
       <div class="skeleton" style="margin: 2px 0; width: 70%;"></div>
     </div>
-    ${current && !current.pending ? `
-      <div style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px;">
-        <div class="transit-menu-item" data-action="refresh">
-          <span>🔄</span><span style="font-size: 12px;">다시 추천받기</span>
-        </div>
+    <div style="border-top: 1px solid var(--border); margin-top: 4px; padding: 6px 10px;">
+      <div style="font-size: 10.5px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">
+        수동 선택
       </div>
-    ` : ''}
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+        ${MANUAL_MODES.map(m => `
+          <button class="tr-mode-chip ${curMode === m.mode ? 'active' : ''}" data-mode="${m.mode}"
+            style="padding: 6px 4px; border-radius: 4px; cursor: pointer;
+                   border: 1px solid ${curMode === m.mode ? 'var(--accent)' : 'var(--border)'};
+                   background: ${curMode === m.mode ? 'var(--accent-soft)' : 'var(--bg)'};
+                   color: ${curMode === m.mode ? 'var(--accent)' : 'var(--text)'};
+                   font-size: 11.5px; line-height: 1.2;">
+            <div style="font-size: 16px;">${transitEmoji(m.mode)}</div>
+            <div style="font-weight: 500; margin-top: 2px;">${m.label}</div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+    <div style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px;">
+      <div class="transit-menu-item" data-action="auto">
+        <span>🤖</span><span style="font-size: 12px;">자동 추천으로 ${isManual ? '되돌리기' : '다시 받기'}</span>
+      </div>
+    </div>
   `;
   document.body.appendChild(transitMenuEl);
   setTimeout(() => document.addEventListener('click', closeTransitMenuOnce), 50);
 
-  // Show current recommendation or fetch a new one
+  // Show current pick or fetch a new auto recommendation
   const fillRecommend = async (forceFresh) => {
-    let mode, duration;
+    let mode, duration, manual = false;
     if (current && current.mode && !current.pending && !forceFresh) {
       mode = current.mode;
       duration = current.duration;
+      manual = !!current.manual;
     } else {
       mode = await suggestTransitMode(from, to);
       duration = await estimateTransitDuration(from, to, mode);
@@ -4980,7 +5037,7 @@ async function openTransitMenu(el) {
       <div style="display:flex; align-items: center; gap: 10px; justify-content: center;">
         <span style="font-size: 22px;">${transitEmoji(mode)}</span>
         <div style="text-align: left;">
-          <div style="font-size: 14px; font-weight: 600; color: var(--text);">${transitLabel(mode)}</div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--text);">${transitLabel(mode)}${manual ? ' (수동)' : ''}</div>
           <div style="font-size: 11px; color: var(--text-mute);">⏱ ${formatDuration(duration)}</div>
         </div>
       </div>
@@ -4989,14 +5046,30 @@ async function openTransitMenu(el) {
 
   fillRecommend(false);
 
-  // Refresh button
-  transitMenuEl.querySelectorAll('[data-action="refresh"]').forEach(btn => {
+  // Manual mode chips
+  transitMenuEl.querySelectorAll('.tr-mode-chip').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const mode = btn.dataset.mode;
+      const duration = await estimateTransitDuration(from, to, mode);
+      from.transitTo = { mode, duration, manual: true };
+      cascadeStartTimes(city.days[dayIdx], itemIdx);
+      persist();
+      renderCityLeft();
+      closeTransitMenu();
+    });
+  });
+
+  // Auto recommendation button
+  transitMenuEl.querySelectorAll('[data-action="auto"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const recEl = document.getElementById('trMenuRecommend');
       if (recEl) {
         recEl.innerHTML = `<div class="skeleton" style="margin: 2px 0;"></div><div class="skeleton" style="margin: 2px 0; width: 70%;"></div>`;
       }
+      // Clear manual flag and re-fetch
+      if (from.transitTo) delete from.transitTo.manual;
       await fillRecommend(true);
     });
   });
@@ -7052,10 +7125,12 @@ function renderCalendarPopup() {
            data-src-day="${e.srcDayIdx != null ? e.srcDayIdx : ''}"
            data-src-item="${e.srcItemIdx != null ? e.srcItemIdx : ''}"
            title="${e.name}">
-        <span class="cal-item-time ${e.time ? '' : 'empty'}">${e.time || '--:--'}</span>
-        <span class="cal-item-emoji">${e.emoji}</span>
-        ${e.labelTag ? `<span class="cal-item-tag">${e.labelTag}</span>` : ''}
-        <span class="cal-item-name">${e.name}</span>
+        <div class="cal-item-row1">
+          <span class="cal-item-time ${e.time ? '' : 'empty'}">${e.time || '--:--'}</span>
+          <span class="cal-item-emoji">${e.emoji}</span>
+          ${e.labelTag ? `<span class="cal-item-tag">${e.labelTag}</span>` : ''}
+        </div>
+        <div class="cal-item-name">${e.name}</div>
       </div>
     `).join('');
 
@@ -8227,22 +8302,22 @@ function applyCityRecommendation(city, newDays) {
     const targetGlobal = getGlobalDayNum(d, di);
     const matched = newDays.find(nd => nd.dayNumGlobal === targetGlobal) || newDays[di];
     if (!matched || !matched.items) return;
-    d.items = matched.items.map((it, ii) => {
-      const item = {
-        id: it.id || ('item_' + Date.now() + '_' + ii),
-        name: it.name,
-        category: it.category,
-        duration: it.duration || 60,
-        startTime: it.startTime || '',
-        lat: it.lat, lng: it.lng,
-        rating: it.rating, reviewCount: it.reviewCount,
-        address: it.address
-      };
-      if (ii < matched.items.length - 1) {
-        item.transitTo = { mode: 'walk', duration: 10 };
-      }
-      return item;
-    });
+    const mapped = matched.items.map((it, ii) => ({
+      id: it.id || ('item_' + Date.now() + '_' + ii),
+      name: it.name,
+      category: it.category,
+      duration: it.duration || 60,
+      startTime: it.startTime || '',
+      lat: it.lat, lng: it.lng,
+      rating: it.rating, reviewCount: it.reviewCount,
+      address: it.address
+    }));
+    // Distance-aware transit auto-assignment between consecutive items
+    for (let ii = 0; ii < mapped.length - 1; ii++) {
+      const a = mapped[ii], b = mapped[ii + 1];
+      mapped[ii].transitTo = pickAutoTransit(a.lat, a.lng, b.lat, b.lng);
+    }
+    d.items = mapped;
   });
   persist();
 }
@@ -9357,29 +9432,26 @@ function applyGeneratedPlan(plan, draft) {
       day: '',
       title: c.name,
       subtitle: c.type === 'day' ? '당일치기' : `${c.nights}박`,
-      days: (c.days || []).map(d => ({
-        dayNum: d.dayNumGlobal,
-        date: d.date,
-        title: d.title,
-        items: (d.items || []).map((it, itIdx) => {
-          const item = {
-            id: it.id || ('item_' + Date.now() + '_' + itIdx),
-            name: it.name,
-            category: it.category,
-            duration: it.duration || 60,
-            startTime: it.startTime || '',
-            lat: it.lat,
-            lng: it.lng,
-            rating: it.rating,
-            reviewCount: it.reviewCount,
-            address: it.address
-          };
-          if (itIdx < d.items.length - 1) {
-            item.transitTo = { mode: 'walk', duration: 10 };
-          }
-          return item;
-        })
-      })),
+      days: (c.days || []).map(d => {
+        const mapped = (d.items || []).map((it, itIdx) => ({
+          id: it.id || ('item_' + Date.now() + '_' + itIdx),
+          name: it.name,
+          category: it.category,
+          duration: it.duration || 60,
+          startTime: it.startTime || '',
+          lat: it.lat,
+          lng: it.lng,
+          rating: it.rating,
+          reviewCount: it.reviewCount,
+          address: it.address
+        }));
+        // Distance-aware transit auto-assignment (replaces the old hardcoded "walk 10min" default).
+        for (let i = 0; i < mapped.length - 1; i++) {
+          const a = mapped[i], b = mapped[i + 1];
+          mapped[i].transitTo = pickAutoTransit(a.lat, a.lng, b.lat, b.lng);
+        }
+        return { dayNum: d.dayNumGlobal, date: d.date, title: d.title, items: mapped };
+      }),
       tip: '', warn: ''
     };
     // Base/alpine: transitToNext is base → next base
