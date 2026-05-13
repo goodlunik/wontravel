@@ -2770,6 +2770,72 @@ function getPrevBase(baseCityId) {
   const idx = bases.findIndex(c => c.id === baseCityId);
   return (idx > 0) ? bases[idx - 1] : null;
 }
+
+// ===== DAY DEFAULTS SCAFFOLDING =====
+// Empty days get pre-populated with placeholders so the user has a starting frame
+// (hotel start, lunch, dinner, hotel end). Special cases for arrival/departure.
+function isArrivalDay(city, dayIdx) {
+  const bases = getBaseCitiesSorted();
+  if (bases.length === 0) return false;
+  return city.id === bases[0].id && dayIdx === 0;
+}
+function isDepartureDay(city, dayIdx) {
+  const bases = getBaseCitiesSorted();
+  if (bases.length === 0) return false;
+  const last = bases[bases.length - 1];
+  return city.id === last.id && dayIdx === ((city.days || []).length - 1);
+}
+function makeDefaultItem(role) {
+  const presets = {
+    'hotel-start': { name: '숙소 (체크아웃/조식)', category: 'hotel', duration: 30, startTime: '07:00' },
+    'hotel-end':   { name: '숙소 (체크인/취침)',  category: 'hotel', duration: 30, startTime: '22:00' },
+    'lunch':       { name: '점심 식사',           category: 'food',  duration: 60, startTime: '12:30' },
+    'dinner':      { name: '저녁 식사',           category: 'food',  duration: 60, startTime: '19:00' }
+  };
+  const p = presets[role];
+  return {
+    id: 'item_default_' + Math.random().toString(36).slice(2, 8),
+    name: p.name,
+    category: p.category,
+    duration: p.duration,
+    startTime: p.startTime,
+    placeholder: true
+  };
+}
+// Populate a single empty day with default placeholders.
+// Returns true if anything was added. NO-OP if day already has items.
+function ensureDayDefaults(city, day, dayIdx) {
+  if (!day.items) day.items = [];
+  if (day.items.length > 0) return false;
+  if (city.type === 'day') {
+    // Day-trip: just lunch — user adds 관광지 between
+    day.items.push(makeDefaultItem('lunch'));
+    return true;
+  }
+  if (isArrivalDay(city, dayIdx)) {
+    day.items.push(makeDefaultItem('hotel-end'));
+  } else if (isDepartureDay(city, dayIdx)) {
+    day.items.push(makeDefaultItem('hotel-start'));
+  } else {
+    day.items.push(makeDefaultItem('hotel-start'));
+    day.items.push(makeDefaultItem('lunch'));
+    day.items.push(makeDefaultItem('dinner'));
+    day.items.push(makeDefaultItem('hotel-end'));
+  }
+  for (let i = 0; i < day.items.length - 1; i++) {
+    day.items[i].transitTo = { mode: 'walk', duration: 10 };
+  }
+  return true;
+}
+function ensureAllDayDefaults() {
+  let changed = false;
+  cities.forEach(city => {
+    (city.days || []).forEach((d, di) => {
+      if (ensureDayDefaults(city, d, di)) changed = true;
+    });
+  });
+  if (changed) persist();
+}
 function typeBadge(type) { return type === 'day' ? 'badge-day' : (type === 'alpine' ? 'badge-alpine' : 'badge-base'); }
 function typeLabel(type) { return type === 'day' ? '당일치기' : (type === 'alpine' ? '알프스/산악' : '베이스 (숙박)'); }
 function categoryEmoji(cat) {
@@ -9476,6 +9542,8 @@ function applyGeneratedPlan(plan, draft) {
   });
 
   cities = newCities;
+  // Fill defaults for any empty days the AI didn't populate
+  ensureAllDayDefaults();
   persist();
   selectedId = null;
   // If currently in city view, exit
@@ -9733,6 +9801,7 @@ function downloadSlotAsJson(slotIdx) {
 
 // ===== INIT =====
 updateKeyStatus();
+ensureAllDayDefaults();
 window.initMap = initMap;
 loadGoogleMaps();
 
