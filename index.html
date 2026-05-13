@@ -6701,28 +6701,9 @@ async function searchCategoryInView(category) {
           lat: p.geometry.location.lat(), lng: p.geometry.location.lng(),
           description: ''
         };
-        // Open right sidebar immediately + show a compact info window with only "+ 일정 추가"
+        // Skip the info window — right sidebar already shows details + "+ 일정에 추가" button.
+        if (infoWindow) infoWindow.close();
         showSearchPlaceInRightPanel(place, p);
-        const content = `
-          <div class="info-window">
-            <div class="iw-title">${categoryEmoji(category)} ${p.name}</div>
-            ${p.rating ? `<div class="iw-rating">★ ${p.rating} (${(p.user_ratings_total || 0).toLocaleString()})</div>` : ''}
-            <div class="iw-ko">${p.vicinity || ''}</div>
-            <div style="margin-top:8px;">
-              <button id="popAddBtn" style="padding:4px 10px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">+ 일정 추가</button>
-            </div>
-          </div>`;
-        infoWindow.setContent(content);
-        infoWindow.open(map, marker);
-        google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
-          const addBtn = document.getElementById('popAddBtn');
-          if (addBtn) {
-            addBtn.addEventListener('click', () => {
-              promptDaySelect(place);
-              infoWindow.close();
-            });
-          }
-        });
       });
       searchMarkers.push(marker);
     });
