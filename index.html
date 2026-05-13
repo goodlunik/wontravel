@@ -3865,12 +3865,14 @@ async function reverseGeocodeForCity(lat, lng) {
 }
 
 function showCityInfoWindow(city, marker) {
+  const isBaseLike = isBaseLikeType(city.type);
   const content = `
     <div class="info-window">
       <div class="iw-title">${city.emoji || '📍'} ${city.name} <span style="color:var(--text-mute);font-weight:400;font-size:11.5px;">${city.ko || ''}</span></div>
-      <div class="iw-actions" style="display:flex;gap:6px;margin-top:6px;">
-        <button class="iw-btn iw-btn-primary" data-act="enter">세부 일정</button>
-        <button class="iw-btn iw-btn-danger" data-act="delete">도시 삭제</button>
+      <div class="iw-actions" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+        ${isBaseLike ? `<button class="iw-btn" data-act="day-trip">🚄 당일치기 추가</button>` : ''}
+        <button class="iw-btn iw-btn-primary" data-act="enter">📋 세부 일정</button>
+        <button class="iw-btn iw-btn-danger" data-act="delete">🗑 도시 삭제</button>
       </div>
     </div>`;
   infoWindow.setContent(content);
@@ -3880,6 +3882,7 @@ function showCityInfoWindow(city, marker) {
     if (!root) return;
     const enterBtn = root.querySelector('[data-act="enter"]');
     const delBtn = root.querySelector('[data-act="delete"]');
+    const dayTripBtn = root.querySelector('[data-act="day-trip"]');
     if (enterBtn) enterBtn.addEventListener('click', () => {
       infoWindow.close();
       enterCityView(city.id);
@@ -3889,6 +3892,11 @@ function showCityInfoWindow(city, marker) {
         infoWindow.close();
         deleteCity(city.id);
       }
+    });
+    if (dayTripBtn) dayTripBtn.addEventListener('click', () => {
+      infoWindow.close();
+      dayTripPickState = { baseCityId: city.id };
+      setStatus(`🚄 <strong>${city.name}</strong>의 당일치기 도시를 지도에서 클릭하세요. (취소: 다른 곳 클릭)`);
     });
   });
 }
@@ -4366,7 +4374,7 @@ function renderCityLeft() {
 
   bindDaySectionEvents();
   bindItemEvents();
-  document.getElementById('reviewBtnLabel').textContent = city.name + ' 일정 검토';
+  document.getElementById('reviewBtnLabel').textContent = city.name + ' 추천 일정 생성';
   // Re-render day filter (Days may have been added/removed)
   if (currentView === 'city') renderDayFilter();
 }
@@ -7557,18 +7565,20 @@ async function chatWithOpenAI(question, context) {
 
 // ===== REVIEW =====
 document.getElementById('reviewBtn').addEventListener('click', async () => {
+  // In city view: generate a recommended itinerary for the current city only and apply it.
+  // In overview view: keep the previous behavior (full itinerary review).
+  if (currentView === 'city' && currentCityId) {
+    const city = cities.find(c => c.id === currentCityId);
+    if (!city) return;
+    await generateCityRecommendation(city);
+    return;
+  }
+
   document.getElementById('reviewModal').classList.add('open');
   const content = document.getElementById('reviewContent');
   content.innerHTML = '<div class="skeleton"></div><div class="skeleton" style="width:80%;"></div>';
-  let prompt, title;
-  if (currentView === 'city' && currentCityId) {
-    const city = cities.find(c => c.id === currentCityId);
-    title = `✨ ${city.name} 일정 검토`;
-    prompt = buildCityReviewPrompt(city);
-  } else {
-    title = '✨ 전체 일정 검토';
-    prompt = buildOverallReviewPrompt();
-  }
+  const title = '✨ 전체 일정 검토';
+  const prompt = buildOverallReviewPrompt();
   document.getElementById('reviewModalTitle').textContent = title;
   try {
     const review = await reviewWithOpenAI(prompt);
@@ -7577,6 +7587,152 @@ document.getElementById('reviewBtn').addEventListener('click', async () => {
     content.innerHTML = `<div style="color:var(--red);">오류: ${err.message}</div>`;
   }
 });
+
+// Generate a recommended itinerary for a single city only (the city's days are filled by GPT).
+async function generateCityRecommendation(city) {
+  if (!openaiKey) {
+    alert('OpenAI API 키가 필요합니다. 우상단 "⚙️ API 키"에서 입력하세요.');
+    return;
+  }
+  if (!confirm(`${city.name}의 일정을 GPT가 추천하는 일정으로 새로 생성합니다. 현재 ${city.name} 일정은 덮어쓰여집니다. 계속할까요?`)) {
+    return;
+  }
+  document.getElementById('reviewModal').classList.add('open');
+  document.getElementById('reviewModalTitle').textContent = `✨ ${city.name} 추천 일정 생성 중`;
+  const content = document.getElementById('reviewContent');
+  content.innerHTML = `
+    <div style="text-align:center; padding: 20px;">
+      <div class="spinner" style="margin: 0 auto 16px;"></div>
+      <div style="font-size: 14px; color: var(--text-soft);">GPT가 ${city.name} 일정을 짜고 있어요...</div>
+      <div id="cityGenStep" style="font-size: 12px; color: var(--text-mute); margin-top: 8px;">1단계 · 일정 작성 중</div>
+    </div>`;
+
+  try {
+    const items = await generateSingleCityPlan(city);
+    document.getElementById('cityGenStep').textContent = '2단계 · 좌표 조회 중';
+    await enrichCityItemsWithCoordinates(city, items);
+    document.getElementById('cityGenStep').textContent = '3단계 · 일정 적용 중';
+    applyCityRecommendation(city, items);
+    document.getElementById('reviewModal').classList.remove('open');
+    renderAll();
+    setStatus(`✨ <strong>${city.name}</strong>의 추천 일정이 적용되었습니다.`);
+  } catch (err) {
+    console.error('City generate error:', err);
+    content.innerHTML = `<div style="color:var(--red); padding: 12px;">오류: ${err.message || err}</div>`;
+  }
+}
+
+async function generateSingleCityPlan(city) {
+  const dayList = (city.days || []).map((d, i) => {
+    const globalNum = getGlobalDayNum(d, i);
+    return `- Day ${globalNum} (${d.date}, ${d.title || ''})`;
+  }).join('\n');
+  const totalItemsHint = (city.days || []).length * 4;
+  const isDayTrip = city.type === 'day';
+
+  const prompt = `이탈리아 ${city.name}(${city.ko}) ${isDayTrip ? '당일치기' : (city.nights || '')} 일정을 추천해주세요.
+가족 (성인 2 + 초등 6학년 + 초등 1학년), 2025년 12월 말 ~ 2026년 1월 초 방문.
+
+== 일자별 ==
+${dayList || '- (날짜 정보 없음)'}
+
+== 작성 규칙 ==
+1. 각 Day에 ${isDayTrip ? '3-5' : '3-6'}개 일정 (관광지/식당/호텔)
+2. 12/24·12/25·12/31·1/1 특수성, 12/25·1/1 박물관 휴무 고려
+3. 12월 말 겨울, 16:30 일몰, 어린이 동선 고려
+4. 시간 배치: 식사 7:30-9:00·12:30-13:30·19:00-20:30 / 관광 9:30-17:00 / 호텔 체크인 14:00-16:00
+5. 같은 Day 내 시간순. startTime은 직전 startTime + duration + 합리적 이동시간 이후
+6. 각 아이템 필드:
+   - name: 한국어 + 영문 괄호 (예: "콜로세움 (Colosseo)")
+   - category: "tour" | "hotel" | "food" 중 하나
+   - duration: 분 단위 정수 (관광 60-120, 식당 60-90, 호텔 30)
+   - startTime: "HH:MM"
+   - searchQuery: 영문 (예: "Colosseo Rome Italy")
+
+== 출력 ==
+JSON만:
+{
+  "days": [
+    {
+      "dayNumGlobal": ${(city.days && city.days[0]) ? getGlobalDayNum(city.days[0], 0) : 1},
+      "items": [
+        {"name": "예시 (Example)", "category": "tour", "startTime": "10:00", "duration": 90, "searchQuery": "Example ${city.name} Italy"}
+      ]
+    }
+  ]
+}`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.5,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`OpenAI: ${resp.status} - ${errText.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const parsed = JSON.parse(data.choices[0].message.content);
+  if (!parsed.days || !Array.isArray(parsed.days)) {
+    throw new Error('AI 응답 형식 오류 (days 배열 없음)');
+  }
+  return parsed.days;
+}
+
+async function enrichCityItemsWithCoordinates(city, days) {
+  if (!placesService) return;
+  const center = { lat: city.lat, lng: city.lng };
+  const allItems = [];
+  days.forEach(d => (d.items || []).forEach(it => { if (it.searchQuery) allItems.push(it); }));
+  const CONCURRENCY = 3;
+  let cursor = 0;
+  async function worker() {
+    while (cursor < allItems.length) {
+      const it = allItems[cursor++];
+      const r = await placesTextSearchOne(it.searchQuery, center);
+      if (r) {
+        it.lat = r.lat; it.lng = r.lng; it.id = r.id;
+        it.rating = r.rating; it.reviewCount = r.reviewCount; it.address = r.address;
+      } else {
+        it.lat = center.lat + (Math.random() - 0.5) * 0.01;
+        it.lng = center.lng + (Math.random() - 0.5) * 0.01;
+        it.id = 'gen_' + Math.random().toString(36).slice(2);
+      }
+    }
+  }
+  await Promise.all(Array(CONCURRENCY).fill(0).map(() => worker()));
+}
+
+function applyCityRecommendation(city, newDays) {
+  // Map AI-output days (by dayNumGlobal) onto the city.days[] entries by their global day numbers
+  city.days.forEach((d, di) => {
+    const targetGlobal = getGlobalDayNum(d, di);
+    const matched = newDays.find(nd => nd.dayNumGlobal === targetGlobal) || newDays[di];
+    if (!matched || !matched.items) return;
+    d.items = matched.items.map((it, ii) => {
+      const item = {
+        id: it.id || ('item_' + Date.now() + '_' + ii),
+        name: it.name,
+        category: it.category,
+        duration: it.duration || 60,
+        startTime: it.startTime || '',
+        lat: it.lat, lng: it.lng,
+        rating: it.rating, reviewCount: it.reviewCount,
+        address: it.address
+      };
+      if (ii < matched.items.length - 1) {
+        item.transitTo = { mode: 'walk', duration: 10 };
+      }
+      return item;
+    });
+  });
+  persist();
+}
 
 function buildCityReviewPrompt(city) {
   const dayDetails = city.days.map(d => {
@@ -7664,8 +7820,10 @@ function enterCityView(cityId) {
   selectedId = null;
   visibleDays = null; // reset filter when entering a city
 
-  document.getElementById('mapTools').style.display = 'none';
-  document.getElementById('mapCategories').style.display = 'flex';
+  const mapToolsEl = document.getElementById('mapTools');
+  if (mapToolsEl) mapToolsEl.style.display = 'none';
+  const mapCatsEl = document.getElementById('mapCategories');
+  if (mapCatsEl) mapCatsEl.style.display = 'flex';
 
   document.getElementById('breadcrumb').innerHTML = `
     <span class="crumb" id="crumbHome">전체 여행</span>
@@ -7696,8 +7854,10 @@ function exitToOverview() {
   document.getElementById('dayFilter').style.display = 'none';
   document.querySelectorAll('.category-btn[data-cat]').forEach(b => b.classList.remove('active'));
 
-  document.getElementById('mapTools').style.display = '';
-  document.getElementById('mapCategories').style.display = 'none';
+  const mapToolsEl = document.getElementById('mapTools');
+  if (mapToolsEl) mapToolsEl.style.display = '';
+  const mapCatsEl = document.getElementById('mapCategories');
+  if (mapCatsEl) mapCatsEl.style.display = 'none';
   document.getElementById('breadcrumb').innerHTML = `<span class="crumb current" id="crumbHome">전체 여행</span>`;
 
   clearPlaceMarkers();
@@ -8393,13 +8553,10 @@ function countTotalItems(plan) {
 
 async function generateItineraryPlan(prefText, draft) {
   draft = draft || aiCityDraft;
-  // Build the city list with nights, types
-  const cityListStr = draft.map((c, i) =>
-    `${i+1}. ${c.name}(${c.ko}) - ${c.type === 'day' ? '당일치기' : c.nights + '박'} (${c.type})`
-  ).join('\n');
 
   // Compute date range starting Dec 19
-  const totalDays = 14;
+  const totalBaseNights = draft.filter(c => c.type !== 'day').reduce((s, c) => s + (c.nights || 0), 0);
+  const totalDays = totalBaseNights + 1; // N박 → N+1일
   const dateLabels = [];
   const startDate = new Date(2025, 11, 19); // Dec 19, 2025
   const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
@@ -8412,45 +8569,87 @@ async function generateItineraryPlan(prefText, draft) {
     dateLabels.push(`${m}/${day} (${wd})`);
   }
 
-  const prompt = `당신은 이탈리아 가족 여행 전문 플래너입니다. 다음 조건으로 13박 14일 일정을 짜주세요.
+  // Compute global day assignments for each city in advance so the prompt is unambiguous.
+  // Base/alpine cities consume N consecutive days (where N = nights). Day-trip cities share
+  // a global day with their parent (the most recent base/alpine in the list).
+  const cityDayPlan = [];
+  let cursor = 1; // 1-based global day
+  let lastBaseIdx = -1;
+  draft.forEach((c, idx) => {
+    if (c.type === 'day') {
+      // Day-trip: share a global day with parent base. Use parent's LAST day (a free middle/last day).
+      const parent = lastBaseIdx >= 0 ? cityDayPlan[lastBaseIdx] : null;
+      const parentLastDay = parent ? parent.days[parent.days.length - 1] : 1;
+      cityDayPlan.push({
+        idx, name: c.name, ko: c.ko, type: 'day',
+        nights: 0, days: [parentLastDay],
+        parentName: parent ? parent.name : null
+      });
+    } else {
+      const n = c.nights || 1;
+      const days = [];
+      for (let k = 0; k < n; k++) days.push(cursor + k);
+      cityDayPlan.push({
+        idx, name: c.name, ko: c.ko, type: c.type,
+        nights: n, days, parentName: null
+      });
+      lastBaseIdx = cityDayPlan.length - 1;
+      cursor += n;
+    }
+  });
+  // The next base after the LAST base also gets +1 arrival day baked into its days
+  // (handled by sequential N nights = N days + final departure on next city's first day)
+  // Above logic already assigns N days per base = N nights. Final +1 day for the LAST base.
+  if (lastBaseIdx >= 0) {
+    const last = cityDayPlan[lastBaseIdx];
+    last.days.push(last.days[last.days.length - 1] + 1);
+  }
+
+  const cityListStr = cityDayPlan.map((c, i) => {
+    const dayRange = c.days.length === 1 ? `Day ${c.days[0]}` : `Day ${c.days[0]}~${c.days[c.days.length-1]}`;
+    if (c.type === 'day') {
+      return `${i+1}. ${c.name}(${c.ko}) - 당일치기 (${dayRange}, 부모 베이스: ${c.parentName || '?'})`;
+    }
+    return `${i+1}. ${c.name}(${c.ko}) - ${c.nights}박 (${dayRange}, ${c.type})`;
+  }).join('\n');
+
+  const exampleDayTrip = cityDayPlan.find(c => c.type === 'day');
+  const exampleBase = cityDayPlan.find(c => c.type !== 'day');
+
+  const prompt = `당신은 이탈리아 가족 여행 전문 플래너입니다. 다음 조건으로 ${totalDays-1}박 ${totalDays}일 일정을 짜주세요.
 
 == 여행 기본 정보 (변경 불가) ==
 - 출발: 2025년 12월 19일 19:30 로마 FCO 도착
-- 귀국: 2026년 1월 1일 20:05 밀라노 출발 (MXP 권장, 3시간 전 도착)
+- 귀국: ${dateLabels[totalDays-1]} 20:05 밀라노 출발 (MXP 권장, 3시간 전 도착)
 - 인원: 성인 2명 + 초등 6학년 아들 + 초등 1학년 아들
-- 총 13박 14일 (날짜: ${dateLabels.join(', ')})
+- 총 ${totalDays-1}박 ${totalDays}일 (날짜: ${dateLabels.join(', ')})
 
-== 방문 도시 (지정한 순서 유지) ==
+== 방문 도시 (지정한 순서 · 글로벌 Day 번호 고정) ==
 ${cityListStr}
 
 ${prefText ? `== 추가 요청사항 ==\n${prefText}\n` : ''}
 
 == 작성 규칙 ==
-1. 각 베이스 도시별로 머무는 일수만큼 Day를 만들고, 당일치기 도시는 가장 가까운 베이스 도시의 한 Day에 끼워넣을 것
-2. 각 Day에 3-6개 일정 (관광지/식당/호텔/공항). 첫날·마지막 날은 1-3개로 가볍게
-3. 도시 간 이동일은 이동 + 가벼운 활동 1-2개로 구성
-4. 12월 24일(이브), 12월 25일(크리스마스), 12월 31일(송년), 1월 1일(신정) 특수성 반영
-5. 박물관 휴무일 12/25, 1/1 고려
-6. 12월 말 겨울 날씨, 어린이 동선 고려 (해 짧음 — 16:30 일몰)
+1. **위 도시 목록 그대로 ${cityDayPlan.length}개 도시를 JSON cities 배열에 출력하세요.** 당일치기 도시도 반드시 별도 cities 항목으로 출력. 합치거나 빼지 말 것.
+2. 각 도시의 days[]에는 위 "Day N" 번호 그대로 dayNumGlobal을 넣고, 베이스 도시는 위에 명시된 일수만큼 days를, 당일치기 도시는 정확히 1개 day를 출력.
+3. **당일치기 도시의 dayNumGlobal은 반드시 부모 베이스 도시의 day 중 하나와 같아야 함**. 부모 베이스의 그 날에는 이동/식사 정도만 가볍게(0~2개), 당일치기 도시 쪽에 본 일정(3~5개)을 채울 것.
+4. 각 Day에 베이스 기준 3-6개 일정 (관광지/식당/호텔/공항). 도착·출국일은 1-3개로 가볍게.
+5. 12월 24일(이브), 12월 25일(크리스마스), 12월 31일(송년), 1월 1일(신정) 특수성 반영. 박물관 휴무일 12/25, 1/1 고려.
+6. 12월 말 겨울 (해 짧음, 16:30 일몰), 어린이 동선 고려.
 7. **공항 처리**:
-   - Day 1 (12/19): 첫 일정은 반드시 "로마 피우미치노 공항 (FCO) 도착", category="airport", startTime="19:30", duration=60, searchQuery="Fiumicino Airport Rome"
-   - 마지막 Day (1/1): 마지막 일정은 반드시 "밀라노 말펜사 공항 (MXP) 출국", category="airport", startTime="17:00", duration=185, searchQuery="Milan Malpensa Airport"
+   - Day 1 (12/19) 첫 일정: "로마 피우미치노 공항 (FCO) 도착", category="airport", startTime="19:30", duration=60, searchQuery="Fiumicino Airport Rome"
+   - 마지막 Day (${dateLabels[totalDays-1]}) 마지막 일정: "밀라노 말펜사 공항 (MXP) 출국", category="airport", startTime="17:00", duration=185, searchQuery="Milan Malpensa Airport"
 8. 각 일정 아이템 필드:
    - name: 한국어 + 영문 괄호 (예: "콜로세움 (Colosseo)")
    - category: "tour" | "hotel" | "food" | "airport" 중 하나
    - duration: 분 단위 정수 (관광지 60-120, 식당 60-90, 호텔 체크인 30, 공항 60-185)
-   - startTime: "HH:MM" 형식 (24시간제, 예: "09:30"). 같은 Day 내 일정은 시간순으로 정렬되어야 하고, 직전 일정의 startTime + duration + 합리적 이동시간 이후로 설정
-   - searchQuery: 영문 검색어 (Google Places API용, 예: "Colosseo Rome Italy")
-9. **시간 배치 원칙**:
-   - 식사: 아침 7:30-9:00, 점심 12:30-13:30, 저녁 19:00-20:30
-   - 관광지: 보통 9:30-17:00 사이 (조명 좋은 시간)
-   - 호텔 체크인: 14:00-16:00 (조기 체크인 안 되는 경우 많음)
-   - 도착일은 19:30 공항 → 21:00 이후 호텔 → 22:00 가벼운 식사
-   - 출국일은 17:00에 공항 도착이 마지막
-10. 도시 간 이동수단 (transitToNext):
-   - mode: "train" | "flight" | "car" | "bus" | "taxi" | "boat" 중 하나
-   - duration: 분 단위 정수 (대기/환승 포함)
-   - note: 한국어 한 줄 (예: "프레치아로사 고속열차")
+   - startTime: "HH:MM" (24h). 같은 Day 안에서 시간순 + 이동시간 고려
+   - searchQuery: 영문 검색어 (예: "Colosseo Rome Italy")
+9. **시간 배치**: 식사 아침 7:30-9:00, 점심 12:30-13:30, 저녁 19:00-20:30 / 관광 9:30-17:00 / 호텔 체크인 14:00-16:00 / 도착일 19:30 공항→21:00 호텔→22:00 가벼운 식사 / 출국일 17:00 공항 도착이 마지막
+10. 도시 간 이동수단 (베이스→다음 베이스 transitToNext, 부모 베이스↔당일치기 outboundTransit/returnTransit):
+    - mode: "train" | "flight" | "car" | "bus" | "taxi" | "boat"
+    - duration: 분 단위 정수 (대기/환승 포함)
+    - note: 한국어 한 줄 (예: "프레치아로사 고속열차")
 
 == 출력 형식 ==
 JSON으로만 응답. 다른 텍스트 절대 금지.
@@ -8458,28 +8657,45 @@ JSON으로만 응답. 다른 텍스트 절대 금지.
 {
   "cities": [
     {
-      "name": "Roma",
-      "ko": "로마",
-      "type": "base",
-      "nights": 4,
+      "name": "${exampleBase ? exampleBase.name : 'Roma'}",
+      "ko": "${exampleBase ? exampleBase.ko : '로마'}",
+      "type": "${exampleBase ? exampleBase.type : 'base'}",
+      "nights": ${exampleBase ? exampleBase.nights : 4},
       "days": [
         {
-          "dayNumGlobal": 1,
-          "date": "12/19 (금)",
-          "title": "Day 1 · 로마 도착",
+          "dayNumGlobal": ${exampleBase ? exampleBase.days[0] : 1},
+          "date": "${dateLabels[(exampleBase ? exampleBase.days[0] : 1) - 1]}",
+          "title": "Day ${exampleBase ? exampleBase.days[0] : 1} · 도착",
           "items": [
-            {"name": "로마 피우미치노 공항 (FCO) 도착", "category": "airport", "startTime": "19:30", "duration": 60, "searchQuery": "Fiumicino Airport Rome"},
-            {"name": "호텔 체크인 (Hotel near Termini)", "category": "hotel", "startTime": "21:00", "duration": 30, "searchQuery": "hotel near Termini Rome"},
-            {"name": "근처 저녁식사", "category": "food", "startTime": "21:45", "duration": 60, "searchQuery": "trattoria near Termini Rome"}
+            {"name": "예시 (Example)", "category": "tour", "startTime": "10:00", "duration": 90, "searchQuery": "Example Italy"}
           ]
         }
       ],
       "transitToNext": {"mode": "train", "duration": 95, "note": "프레치아로사 고속열차"}
-    }
+    }${exampleDayTrip ? `,
+    {
+      "name": "${exampleDayTrip.name}",
+      "ko": "${exampleDayTrip.ko}",
+      "type": "day",
+      "nights": 0,
+      "parentBaseName": "${exampleDayTrip.parentName}",
+      "days": [
+        {
+          "dayNumGlobal": ${exampleDayTrip.days[0]},
+          "date": "${dateLabels[exampleDayTrip.days[0] - 1]}",
+          "title": "Day ${exampleDayTrip.days[0]} · ${exampleDayTrip.name} 당일치기",
+          "items": [
+            {"name": "현지 명소 (Local)", "category": "tour", "startTime": "10:30", "duration": 120, "searchQuery": "Landmark ${exampleDayTrip.name} Italy"}
+          ]
+        }
+      ],
+      "outboundTransit": {"mode": "train", "duration": 70, "note": "고속열차 왕복"},
+      "returnTransit": {"mode": "train", "duration": 70, "note": "고속열차 왕복"}
+    }` : ''}
   ]
 }
 
-마지막 도시의 transitToNext는 null로.`;
+규칙: 베이스 도시의 transitToNext는 다음 베이스로 이어지는 이동수단, 마지막 베이스의 transitToNext는 null. 당일치기 도시는 transitToNext 대신 outboundTransit(베이스→당일치기)과 returnTransit(당일치기→베이스)을 채울 것.`;
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -8605,7 +8821,7 @@ function applyGeneratedPlan(plan, draft) {
 
   const newCities = plan.cities.map((c, idx) => {
     const draftCity = draft.find(d => d.name === c.name) || {};
-    return {
+    const baseObj = {
       id: 'city_ai_' + idx + '_' + Date.now() + Math.random().toString(36).slice(2,5),
       order: idx + 1,
       type: c.type || draftCity.type || 'base',
@@ -8618,11 +8834,11 @@ function applyGeneratedPlan(plan, draft) {
       day: '',
       title: c.name,
       subtitle: c.type === 'day' ? '당일치기' : `${c.nights}박`,
-      days: c.days.map(d => ({
+      days: (c.days || []).map(d => ({
         dayNum: d.dayNumGlobal,
         date: d.date,
         title: d.title,
-        items: d.items.map((it, itIdx) => {
+        items: (d.items || []).map((it, itIdx) => {
           const item = {
             id: it.id || ('item_' + Date.now() + '_' + itIdx),
             name: it.name,
@@ -8635,16 +8851,33 @@ function applyGeneratedPlan(plan, draft) {
             reviewCount: it.reviewCount,
             address: it.address
           };
-          // Add transitTo for non-last items (default walk)
           if (itIdx < d.items.length - 1) {
             item.transitTo = { mode: 'walk', duration: 10 };
           }
           return item;
         })
       })),
-      transitToNext: c.transitToNext || null,
       tip: '', warn: ''
     };
+    // Base/alpine: transitToNext is base → next base
+    // Day-trip: outboundTransit + returnTransit + parentBaseName resolved later
+    if (c.type === 'day') {
+      if (c.outboundTransit) baseObj.outboundTransit = c.outboundTransit;
+      if (c.returnTransit) baseObj.returnTransit = c.returnTransit;
+      baseObj._aiParentBaseName = c.parentBaseName || null;
+    } else {
+      baseObj.transitToNext = c.transitToNext || null;
+    }
+    return baseObj;
+  });
+
+  // Resolve parentBaseName → parentBaseId now that all city objects (with ids) exist
+  newCities.forEach(c => {
+    if (c.type === 'day' && c._aiParentBaseName) {
+      const parent = newCities.find(p => isBaseLikeType(p.type) && p.name === c._aiParentBaseName);
+      if (parent) c.parentBaseId = parent.id;
+    }
+    delete c._aiParentBaseName;
   });
 
   cities = newCities;
