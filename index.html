@@ -1059,11 +1059,13 @@
     font-size: 26px; color: var(--text-mute);
   }
   .lodging-subtype-badge {
-    display: inline-block; padding: 1px 7px; border-radius: 999px;
+    display: inline-block;
+    padding: 1px 7px; border-radius: 999px;
     font-size: 10.5px; font-weight: 600;
     background: var(--bg-soft); color: var(--text-soft);
     border: 1px solid var(--border);
-    margin-left: 4px;
+    vertical-align: 2px;
+    white-space: nowrap;
   }
   .lodging-subtype-badge.hotel { background: #e7f3fb; color: #0b6e99; border-color: #b6daea; }
   .lodging-subtype-badge.guesthouse { background: #fff6e8; color: #d9730d; border-color: #f3d8aa; }
@@ -1135,9 +1137,9 @@
   }
   .place-detail-name {
     font-size: 14px; font-weight: 500; color: var(--text);
-    display: flex; align-items: center; gap: 6px;
+    line-height: 1.35;
   }
-  .place-detail-name .emoji { font-size: 16px; }
+  .place-detail-name .emoji { font-size: 16px; margin-right: 4px; vertical-align: middle; }
   .place-detail-meta {
     font-size: 12px; color: var(--text-mute); margin-top: 2px;
     display: flex; gap: 10px; align-items: center;
@@ -2645,6 +2647,8 @@ let deleteMode = false; // edit mode: show X buttons next to each item
 let activeLodgingType = 'all'; // 'all' | 'hotel' | 'guesthouse' | 'apartment'
 let lodgingPriceCache = {}; // placeId -> "30만~60만원" string
 let lodgingPriceFetchInflight = false;
+let placePaginators = []; // [{ hasNext(), fetchNext() }] per query batch — for "더 불러오기"
+let placesLoadingMore = false;
 
 // ===== FAVORITES (관심 등록) =====
 // Persisted per category — survives reloads. Each entry stores enough to re-render
@@ -5673,14 +5677,80 @@ function openReplaceMenu(dayIdx, itemIdx) {
   openPlacesModal(item.category, dayIdx, itemIdx);
 }
 
+// Map a Google Places result object to our internal place shape
+function mapPlaceResult(p, category, subType, tag) {
+  let photoUrl = null;
+  try {
+    if (p.photos && p.photos.length > 0 && typeof p.photos[0].getUrl === 'function') {
+      photoUrl = p.photos[0].getUrl({ maxWidth: 240, maxHeight: 180 });
+    }
+  } catch (_) { photoUrl = null; }
+  return {
+    id: p.place_id,
+    name: p.name,
+    category,
+    subType: subType || null,
+    rating: p.rating || null,
+    reviewCount: p.user_ratings_total || 0,
+    address: p.formatted_address || '',
+    lat: p.geometry.location.lat(),
+    lng: p.geometry.location.lng(),
+    description: tag || (p.types ? p.types.slice(0,2).join(', ') : ''),
+    priceLevel: p.price_level,
+    types: p.types,
+    photoUrl,
+    _lodgingTag: tag || null
+  };
+}
+
+// Set up a paginator for a single query. Returns a promise that resolves to
+// { initialResults, hasNext(), fetchNext() } so we can lazily load more pages.
+function setupQueryPaginator(city, q, subType, tag, category) {
+  return new Promise(initResolve => {
+    let nextResolve = null;
+    let currentPagination = null;
+    let initialDone = false;
+    const request = {
+      query: q,
+      location: new google.maps.LatLng(city.lat, city.lng),
+      radius: 10000,
+      language: 'ko'
+    };
+    placesService.textSearch(request, (results, status, pagination) => {
+      currentPagination = pagination;
+      const ok = status === google.maps.places.PlacesServiceStatus.OK && results;
+      const mapped = ok ? results.map(p => mapPlaceResult(p, category, subType, tag)) : [];
+      if (!initialDone) {
+        initialDone = true;
+        initResolve({
+          initialResults: mapped,
+          hasNext: () => !!(currentPagination && currentPagination.hasNextPage),
+          fetchNext: () => new Promise(r => {
+            if (!currentPagination || !currentPagination.hasNextPage) { r([]); return; }
+            nextResolve = r;
+            try { currentPagination.nextPage(); }
+            catch (_) { nextResolve = null; r([]); }
+          })
+        });
+      } else if (nextResolve) {
+        const r = nextResolve;
+        nextResolve = null;
+        r(mapped);
+      }
+    });
+  });
+}
+
 async function fetchPlaces(category) {
   const city = cities.find(c => c.id === currentCityId);
   if (!city) return [];
 
-  // Use Google Places API via JS SDK
+  // Reset paginators on each modal open
+  placePaginators = [];
+
   if (googleKey && placesService) {
-    // For lodging, run multiple queries in parallel and merge results so
-    // we surface hotels, 한인민박 (Korean guesthouses), and apartment-style stays.
+    // Multiple queries per category surface variety. For lodging we get hotels +
+    // 한인민박 (Korean guesthouses) + apartment/Airbnb-style stays.
     const queries = category === 'hotel'
       ? [
           { q: `best hotels in ${city.name}, Italy`, subType: 'hotel', tag: '호텔' },
@@ -5688,63 +5758,60 @@ async function fetchPlaces(category) {
           { q: `apartment vacation rental airbnb-style ${city.name} Italy`, subType: 'apartment', tag: '아파트/Airbnb' }
         ]
       : category === 'tour'
-        ? [{ q: `top tourist attractions in ${city.name}, Italy`, subType: null, tag: '' }]
-        : [{ q: `top restaurants in ${city.name}, Italy`, subType: null, tag: '' }];
+        ? [
+            { q: `top tourist attractions in ${city.name}, Italy`, subType: null, tag: '' },
+            { q: `museums in ${city.name}, Italy`, subType: null, tag: '' }
+          ]
+        : [
+            { q: `top restaurants in ${city.name}, Italy`, subType: null, tag: '' },
+            { q: `traditional italian trattoria ${city.name}`, subType: null, tag: '' }
+          ];
 
-    const runOne = ({ q, subType, tag }) => new Promise(resolve => {
-      const request = {
-        query: q,
-        location: new google.maps.LatLng(city.lat, city.lng),
-        radius: 10000,
-        language: 'ko'
-      };
-      placesService.textSearch(request, (results, status) => {
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
-          resolve([]);
-          return;
-        }
-        resolve(results.slice(0, 10).map(p => {
-          // Extract first photo URL if available (textSearch results carry photos[])
-          let photoUrl = null;
-          try {
-            if (p.photos && p.photos.length > 0 && typeof p.photos[0].getUrl === 'function') {
-              photoUrl = p.photos[0].getUrl({ maxWidth: 240, maxHeight: 180 });
-            }
-          } catch (_) { photoUrl = null; }
-          return {
-            id: p.place_id,
-            name: p.name,
-            category,
-            subType: subType || null,
-            rating: p.rating || null,
-            reviewCount: p.user_ratings_total || 0,
-            address: p.formatted_address || '',
-            lat: p.geometry.location.lat(),
-            lng: p.geometry.location.lng(),
-            description: tag || (p.types ? p.types.slice(0,2).join(', ') : ''),
-            priceLevel: p.price_level,
-            types: p.types,
-            photoUrl,
-            _lodgingTag: tag || null
-          };
-        }));
-      });
-    });
+    const inits = await Promise.all(
+      queries.map(({ q, subType, tag }) => setupQueryPaginator(city, q, subType, tag, category))
+    );
+    inits.forEach(init => placePaginators.push(init));
 
-    const arrays = await Promise.all(queries.map(runOne));
-    // De-duplicate by place_id, prioritize the first occurrence (so hotels come first)
+    // Merge initial results, de-duped by placeId
     const seen = new Set();
     const merged = [];
-    arrays.flat().forEach(p => {
-      if (seen.has(p.id)) return;
+    inits.forEach(init => init.initialResults.forEach(p => {
+      if (!p.id || seen.has(p.id)) return;
       seen.add(p.id);
       merged.push(p);
-    });
+    }));
     if (merged.length === 0) return getDemoPlaces(category, city);
-    // Cap to 30 for the lodging case (10 each) to keep the list manageable
-    return merged.slice(0, category === 'hotel' ? 30 : 15);
+    return merged;
   } else {
     return getDemoPlaces(category, city);
+  }
+}
+
+// Fetch the next page from each paginator that has more results.
+async function fetchMorePlaces() {
+  if (placesLoadingMore) return;
+  const active = placePaginators.filter(p => p && p.hasNext());
+  if (active.length === 0) return;
+  placesLoadingMore = true;
+  // Reflect loading state in the load-more button
+  const loadBtn = document.getElementById('placesLoadMoreBtn');
+  if (loadBtn) {
+    loadBtn.disabled = true;
+    loadBtn.textContent = '더 불러오는 중...';
+  }
+  try {
+    const arrays = await Promise.all(active.map(p => p.fetchNext()));
+    const seen = new Set(currentPlaceList.map(p => p.id));
+    arrays.flat().forEach(p => {
+      if (!p.id || seen.has(p.id)) return;
+      seen.add(p.id);
+      currentPlaceList.push(p);
+    });
+    renderPlacesList();
+  } catch (err) {
+    console.warn('Load more failed:', err);
+  } finally {
+    placesLoadingMore = false;
   }
 }
 
@@ -5818,7 +5885,7 @@ function renderPlacesList() {
   const isReplaceMode = pendingReplaceItemIdx !== null;
   const isLodging = currentPlaceCategory === 'hotel';
 
-  // Render lodging type filter chips (only when category is hotel/lodging)
+  // Lodging-only: render sub-type filter chips
   const typeFilterEl = document.getElementById('lodgingTypeFilter');
   if (typeFilterEl) {
     if (isLodging && !isFavView) {
@@ -5849,7 +5916,7 @@ function renderPlacesList() {
     sorted = sorted.filter(p => p.subType === activeLodgingType);
   }
 
-  // Lodging-specific external search banner (Airbnb is not in Google Places)
+  // Lodging-only: external search banner
   let extHtml = '';
   if (isLodging && city) {
     const q = encodeURIComponent(`${city.name}, Italy`);
@@ -5864,8 +5931,10 @@ function renderPlacesList() {
   }
 
   const subTypeLabel = (st) => st === 'hotel' ? '호텔' : st === 'guesthouse' ? '한인민박' : st === 'apartment' ? '아파트/Airbnb' : '';
+  const placeholderEmoji = (cat) => cat === 'hotel' ? '🏨' : cat === 'food' ? '🍽️' : '📍';
 
-  list.innerHTML = extHtml + sorted.map((p, idx) => {
+  // Unified rich row layout for ALL categories (photo + name + meta + actions).
+  const rowsHtml = sorted.map((p, idx) => {
     const added = existingNames.has(p.name);
     let btnLabel;
     let btnClass = 'place-add-btn';
@@ -5880,54 +5949,32 @@ function renderPlacesList() {
     const isFav = isFavorited(currentPlaceCategory, p);
     const favBtnLabel = isFav ? '★ 등록됨' : '☆ 관심';
 
-    // Lodging-specific row layout: photo + sub-type badge + price chip
+    const photoHtml = p.photoUrl
+      ? `<img class="lodging-photo" src="${p.photoUrl}" alt="" loading="lazy" />`
+      : `<div class="lodging-photo-placeholder">${placeholderEmoji(currentPlaceCategory)}</div>`;
+
+    const subBadge = (isLodging && p.subType)
+      ? ` <span class="lodging-subtype-badge ${p.subType}">${subTypeLabel(p.subType)}</span>`
+      : '';
+
+    let priceChip = '';
     if (isLodging) {
-      const photoHtml = p.photoUrl
-        ? `<img class="lodging-photo" src="${p.photoUrl}" alt="" loading="lazy" />`
-        : `<div class="lodging-photo-placeholder">🏨</div>`;
-      const subBadge = p.subType
-        ? `<span class="lodging-subtype-badge ${p.subType}">${subTypeLabel(p.subType)}</span>`
-        : '';
       const cached = p.id ? lodgingPriceCache[p.id] : null;
-      const priceChip = cached
+      priceChip = cached
         ? `<div class="lodging-price-chip">💰 ${cached}</div>`
         : `<div class="lodging-price-chip loading" data-price-for="${p.id || ''}">💰 추정 중...</div>`;
-      return `
-        <div class="place-row lodging-row" data-idx="${idx}">
-          ${photoHtml}
-          <div>
-            <div class="place-detail-name">
-              <span>${p.name}</span>${subBadge}
-            </div>
-            <div class="place-detail-meta">
-              ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : '<span style="color:var(--text-mute);">평점 없음</span>'}
-              ${p.priceLevel != null ? `<span style="color:var(--text-mute);">${'₩'.repeat((p.priceLevel || 0) + 1)}</span>` : ''}
-            </div>
-            ${priceChip}
-            ${p.address ? `<div class="place-detail-desc" style="margin-top:3px;">📍 ${p.address}</div>` : ''}
-          </div>
-          <div class="place-actions">
-            <button class="${btnClass}" data-act="add" data-idx="${idx}">${btnLabel}</button>
-            <button class="fav-toggle-btn ${isFav ? 'fav' : ''}" data-act="fav" data-idx="${idx}" title="관심 등록 토글">${favBtnLabel}</button>
-          </div>
-        </div>
-      `;
     }
 
-    // Default (non-lodging) row
     return `
-      <div class="place-row" data-idx="${idx}">
-        <div class="place-rank">${isFavView ? '★' : (idx + 1)}</div>
+      <div class="place-row lodging-row" data-idx="${idx}">
+        ${photoHtml}
         <div>
-          <div class="place-detail-name">
-            <span class="emoji">${categoryEmoji(p.category || currentPlaceCategory)}</span>
-            <span>${p.name}</span>
-          </div>
+          <div class="place-detail-name">${p.name}${subBadge}</div>
           <div class="place-detail-meta">
-            ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : ''}
-            ${p.priceLevel != null ? `<span style="color:var(--text-mute);">${'₩'.repeat((p.priceLevel || 0) + 1)}</span>` : ''}
+            ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : '<span style="color:var(--text-mute);">평점 없음</span>'}
           </div>
-          ${p.description ? `<div class="place-detail-desc">${p.description}</div>` : ''}
+          ${priceChip}
+          ${p.address ? `<div class="place-detail-desc" style="margin-top:3px;">📍 ${p.address}</div>` : ''}
         </div>
         <div class="place-actions">
           <button class="${btnClass}" data-act="add" data-idx="${idx}">${btnLabel}</button>
@@ -5937,17 +5984,23 @@ function renderPlacesList() {
     `;
   }).join('');
 
+  // "더 불러오기" button — visible if any paginator still has more pages
+  const canLoadMore = !isFavView && placePaginators.some(pg => pg && pg.hasNext());
+  const loadMoreHtml = canLoadMore
+    ? `<div style="text-align:center; padding: 14px 0 6px;">
+         <button id="placesLoadMoreBtn" class="btn" style="padding: 7px 18px; font-size: 12.5px; border: 1px solid var(--border);">＋ 더 불러오기</button>
+       </div>`
+    : '';
+
+  list.innerHTML = extHtml + rowsHtml + loadMoreHtml;
+
   list.querySelectorAll('.place-row').forEach(row => {
     const idx = parseInt(row.dataset.idx, 10);
-    // For lodging: single click opens right-side detail panel; for others, dblclick still works
-    if (isLodging) {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('[data-act]')) return;
-        showLodgingDetail(sorted[idx]);
-      });
-    } else {
-      row.addEventListener('dblclick', () => showPlaceDetail(sorted[idx]));
-    }
+    // Single-click opens the right-side detail panel for all categories
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act]')) return;
+      showPlaceDetailSide(sorted[idx]);
+    });
     const addBtn = row.querySelector('[data-act="add"]');
     if (addBtn) addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5972,6 +6025,9 @@ function renderPlacesList() {
     });
   });
 
+  const loadBtn = document.getElementById('placesLoadMoreBtn');
+  if (loadBtn) loadBtn.addEventListener('click', fetchMorePlaces);
+
   // Trigger batch price estimation for lodgings (cached, only fetches missing ones)
   if (isLodging && sorted.length > 0) {
     triggerBatchLodgingPrices(sorted, city);
@@ -5990,8 +6046,8 @@ function closeLodgingDetail() {
   }
 }
 
-// Open the right-side lodging detail panel inside the places modal.
-async function showLodgingDetail(place) {
+// Open the right-side place detail panel inside the places modal. Works for any category.
+async function showPlaceDetailSide(place) {
   const modal = document.querySelector('#placesModal .modal');
   const panel = document.getElementById('lodgingDetailPanel');
   const title = document.getElementById('lodgingDetailTitle');
@@ -6001,15 +6057,26 @@ async function showLodgingDetail(place) {
   panel.style.display = 'flex';
   title.textContent = place.name;
 
-  // Render skeleton + structure mirroring the right sidebar in city view
+  const cat = place.category || currentPlaceCategory || 'tour';
+  const isLodging = cat === 'hotel';
+  const eyebrow = isLodging
+    ? (place.subType === 'guesthouse' ? '한인민박' : place.subType === 'apartment' ? '아파트/Airbnb' : '호텔')
+    : categoryLabel(cat);
+  const coverEmoji = isLodging ? '🏨' : cat === 'food' ? '🍽️' : '🎫';
+  const coverGradient = isLodging
+    ? 'linear-gradient(135deg, #4A8FD9 0%, #2383e2 100%)'
+    : cat === 'food'
+      ? 'linear-gradient(135deg, #52B788 0%, #0f7b6c 100%)'
+      : 'linear-gradient(135deg, #E85A9A 0%, #ad1a72 100%)';
+
   body.innerHTML = `
-    <div class="day-cover alpine" style="height:140px; border-radius:6px; margin-bottom:14px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #4A8FD9 0%, #2383e2 100%);">
+    <div style="height:140px; border-radius:6px; margin-bottom:14px; display:flex; align-items:center; justify-content:center; background: ${coverGradient}; overflow: hidden;">
       ${place.photoUrl
         ? `<img src="${place.photoUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" />`
-        : `<div class="day-emoji" style="font-size:48px;">🏨</div>`}
+        : `<div style="font-size:48px;">${coverEmoji}</div>`}
     </div>
     <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 0 0 4px;">
-      ${place.subType === 'guesthouse' ? '한인민박' : place.subType === 'apartment' ? '아파트/Airbnb' : '호텔'}
+      ${eyebrow}
     </div>
     <h1 style="font-size: 18px; font-weight: 700; margin: 0 0 4px; line-height: 1.3;">${place.name}</h1>
     <div class="day-subtitle">${place.rating ? `★ ${place.rating} · 리뷰 ${(place.reviewCount || 0).toLocaleString()}` : '평점 없음'}</div>
@@ -6018,7 +6085,7 @@ async function showLodgingDetail(place) {
       ${place.rating ? `<div class="prop-row"><div class="prop-label">⭐ 평점</div><div class="prop-value">${place.rating} (${(place.reviewCount || 0).toLocaleString()})</div></div>` : ''}
     </div>
     <div id="lodgingPlaceMoreInfo"></div>
-    ${renderHotelPricePanel(place)}
+    ${isLodging ? renderHotelPricePanel(place) : ''}
 
     <div class="nblock-h2">🤖 AI 리뷰 요약</div>
     <div id="lodgingAiReviewSummary">
@@ -6634,30 +6701,24 @@ async function searchCategoryInView(category) {
           lat: p.geometry.location.lat(), lng: p.geometry.location.lng(),
           description: ''
         };
+        // Open right sidebar immediately + show a compact info window with only "+ 일정 추가"
+        showSearchPlaceInRightPanel(place, p);
         const content = `
           <div class="info-window">
             <div class="iw-title">${categoryEmoji(category)} ${p.name}</div>
             ${p.rating ? `<div class="iw-rating">★ ${p.rating} (${(p.user_ratings_total || 0).toLocaleString()})</div>` : ''}
             <div class="iw-ko">${p.vicinity || ''}</div>
-            <div style="margin-top:8px; display:flex; gap:4px;">
+            <div style="margin-top:8px;">
               <button id="popAddBtn" style="padding:4px 10px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">+ 일정 추가</button>
-              <button id="popDetailBtn" style="padding:4px 10px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer; font-size:12px;">자세히 보기</button>
             </div>
           </div>`;
         infoWindow.setContent(content);
         infoWindow.open(map, marker);
         google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
           const addBtn = document.getElementById('popAddBtn');
-          const detailBtn = document.getElementById('popDetailBtn');
           if (addBtn) {
             addBtn.addEventListener('click', () => {
               promptDaySelect(place);
-              infoWindow.close();
-            });
-          }
-          if (detailBtn) {
-            detailBtn.addEventListener('click', () => {
-              showSearchPlaceInRightPanel(place, p);
               infoWindow.close();
             });
           }
