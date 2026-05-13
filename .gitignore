@@ -1,0 +1,8 @@
+# Secrets / local notes
+구글지도.txt
+*.env
+.env*
+
+# Editor / OS
+.DS_Store
+Thumbs.db

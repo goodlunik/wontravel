@@ -148,6 +148,43 @@
   }
   .city-row:hover { background: var(--bg-hover); }
   .city-row.active { background: var(--accent-soft); }
+  .city-row.nested {
+    margin-left: 26px;
+    padding: 5px 8px;
+    border-left: 2px solid var(--border-strong);
+  }
+  .city-row.nested .city-num { transform: scale(0.85); transform-origin: center; }
+  .city-trips-group {
+    margin: 2px 0;
+    padding: 0;
+  }
+  .city-transit.nested {
+    margin-left: 36px;
+    border-left-style: solid;
+    border-left-color: var(--border-strong);
+  }
+  .city-transit .ct-route-label {
+    display: block;
+    font-size: 10.5px; color: var(--text-mute);
+    margin-right: 4px;
+    font-weight: 500;
+  }
+  .city-transit.outbound { background: rgba(82, 183, 136, 0.05); }
+  .city-transit.return { background: rgba(35, 131, 226, 0.04); }
+  .city-transit.inter-base .ct-route-label { color: var(--text-soft); }
+  .city-row.dragging {
+    opacity: 0.45;
+    background: var(--bg-hover);
+    box-shadow: 0 4px 12px rgba(15, 15, 15, 0.12);
+    touch-action: none;
+  }
+  .city-row.long-press-armed {
+    background: var(--bg-hover);
+    transform: scale(0.98);
+    transition: transform 0.15s, background 0.15s;
+  }
+  .city-row.drag-over-top { box-shadow: 0 -2px 0 var(--accent); }
+  .city-row.drag-over-bottom { box-shadow: 0 2px 0 var(--accent); }
 
   /* City transit segment (between city rows) */
   .city-transit {
@@ -161,11 +198,10 @@
     color: var(--text-mute);
     font-size: 11px;
     border-radius: 4px;
-    cursor: pointer;
+    cursor: default;
     transition: background 0.1s;
     user-select: none;
   }
-  .city-transit:hover { background: var(--bg-hover); }
   .city-transit.empty { opacity: 0.7; }
   .city-transit .ct-icon {
     grid-column: 1;
@@ -242,6 +278,48 @@
   .day-section.dragging { opacity: 0.5; }
   .day-section.drag-over-top { border-top: 2px solid var(--accent); }
   .day-section.drag-over-bottom { border-bottom: 2px solid var(--accent); }
+  .day-section.day-section-hidden { display: none; }
+
+  /* Day-trip embed (other city's day folded into this base city's day) */
+  .day-trip-embed {
+    margin: 8px 0 6px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 6px;
+    background: rgba(82, 183, 136, 0.05);
+    padding: 6px 6px 4px;
+  }
+  .day-trip-embed .dte-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 4px 6px;
+    font-size: 11.5px; color: var(--text-soft);
+    font-weight: 600;
+    border-bottom: 1px dashed var(--border);
+    margin-bottom: 6px;
+  }
+  .day-trip-embed .dte-header .dte-link {
+    margin-left: auto;
+    font-size: 10.5px; font-weight: 500;
+    color: var(--accent);
+    cursor: pointer;
+    background: none; border: none;
+    padding: 2px 6px; border-radius: 3px;
+  }
+  .day-trip-embed .dte-header .dte-link:hover { background: var(--bg-hover); }
+  .day-trip-embed .dte-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px; align-items: center;
+    padding: 5px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .day-trip-embed .dte-item:hover { background: var(--bg-hover); }
+  .day-trip-embed .dte-item .dte-emoji { font-size: 14px; }
+  .day-trip-embed .dte-item .dte-name { color: var(--text); font-weight: 500; }
+  .day-trip-embed .dte-item .dte-meta { font-size: 10.5px; color: var(--text-mute); }
+  .day-trip-embed .dte-empty {
+    padding: 8px; font-size: 11.5px; color: var(--text-mute); font-style: italic; text-align: center;
+  }
 
   .day-section-header {
     display: flex; align-items: center; gap: 6px;
@@ -438,50 +516,74 @@
   .item-meta .star { color: var(--orange); }
 
   .item-duration {
-    display: flex; align-items: center; gap: 3px;
-    padding: 2px 6px; border-radius: 3px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    font-size: 11px; color: var(--text-soft);
-    cursor: pointer; transition: all 0.1s;
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 0; border-radius: 0;
+    background: transparent;
+    border: none;
+    font-size: 10.5px; color: var(--text);
+    cursor: pointer; transition: color 0.1s;
     white-space: nowrap;
   }
-  .item-duration:hover { border-color: var(--accent); color: var(--accent); }
-  .item-duration .clock { font-size: 10px; }
+  .item-duration:hover { color: var(--accent); }
+  .item-duration .clock { font-size: 9px; opacity: 0.7; }
   .item-duration.editing { display: none; }
   .duration-input {
     width: 50px; padding: 1px 4px;
     border: 1px solid var(--accent); border-radius: 3px;
-    font-size: 11px; outline: none;
+    font-size: 10.5px; outline: none;
     font-family: inherit;
   }
 
-  /* Start-time label (sits above the duration pill) */
+  /* Time pill — single white box containing "09:00 (2시간)" */
   .time-stack {
     display: flex; flex-direction: column;
-    align-items: flex-end; gap: 2px;
+    align-items: flex-end; gap: 3px;
   }
-  .item-start-time {
-    font-size: 10.5px; font-weight: 600;
-    color: var(--accent);
-    cursor: pointer;
-    padding: 1px 5px; border-radius: 3px;
-    transition: background 0.1s;
+  .time-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
     line-height: 1.1;
     white-space: nowrap;
+    font-size: 10.5px;
+    color: var(--text);
   }
-  .item-start-time:hover {
-    background: var(--accent-soft);
+  .time-pill .time-pill-sep {
+    color: var(--text-mute);
+    font-size: 10.5px;
   }
+  .item-start-time {
+    font-size: 10.5px;
+    color: var(--text);
+    cursor: pointer;
+    transition: color 0.1s;
+    white-space: nowrap;
+    line-height: 1.1;
+  }
+  .item-start-time:hover { color: var(--accent); }
   .item-start-time.placeholder {
     color: var(--text-mute);
     font-weight: 400;
   }
   .start-time-input {
-    width: 60px; padding: 1px 4px;
+    width: 56px; padding: 1px 4px;
     border: 1px solid var(--accent); border-radius: 3px;
-    font-size: 11px; outline: none;
+    font-size: 10.5px; outline: none;
     font-family: inherit;
+  }
+  /* End time (shown below last item's duration) */
+  .item-end-time {
+    font-size: 10.5px;
+    color: var(--text-mute);
+    text-align: right;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .item-end-time strong {
+    color: var(--text-soft);
+    font-weight: 600;
   }
 
   /* TRANSIT SEGMENT (between items) */
@@ -511,6 +613,10 @@
     width: fit-content;
   }
   .transit-segment .transit-mode:hover { background: var(--bg-hover); }
+  .transit-segment .item-duration {
+    font-size: 10.5px;
+    color: var(--text);
+  }
 
   /* Transit mode menu */
   .transit-menu {
@@ -695,6 +801,20 @@
     border: 4px solid var(--bg);
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
   }
+  .day-cover .place-change-btn {
+    position: absolute; top: 10px; right: 12px;
+    padding: 5px 12px;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: background 0.1s;
+  }
+  .day-cover .place-change-btn:hover { background: white; }
   .day-detail h1 {
     font-size: 22px; font-weight: 700; color: var(--text);
     margin: 28px 0 4px; letter-spacing: -0.01em;
@@ -911,7 +1031,7 @@
 
   .place-list { display: flex; flex-direction: column; gap: 4px; }
   .place-row {
-    display: grid; grid-template-columns: 40px 1fr auto;
+    display: grid; grid-template-columns: 40px minmax(0,1fr) auto;
     gap: 12px; padding: 10px;
     border-radius: 6px; cursor: pointer; align-items: center;
     border: 1px solid transparent; transition: all 0.1s;
@@ -943,6 +1063,59 @@
   }
   .place-add-btn:hover { background: #0b6dc4; }
   .place-add-btn.added { background: var(--bg-soft); color: var(--green); border: 1px solid var(--green); }
+  .place-row .place-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .fav-toggle-btn {
+    padding: 5px 10px; border-radius: 4px;
+    background: var(--bg); color: var(--text-mute);
+    border: 1px solid var(--border);
+    font-size: 13px; cursor: pointer; flex-shrink: 0;
+    transition: all 0.1s;
+  }
+  .fav-toggle-btn:hover { color: var(--orange); border-color: var(--orange); background: rgba(255, 165, 0, 0.05); }
+  .fav-toggle-btn.fav { background: rgba(255, 165, 0, 0.12); color: var(--orange); border-color: var(--orange); font-weight: 600; }
+  .fav-count {
+    display: inline-block; min-width: 16px; padding: 0 4px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 8px; font-size: 10px; font-weight: 600;
+    margin-left: 2px;
+  }
+  .filter-chip[data-sort="favorites"].active .fav-count { background: white; color: var(--accent); }
+
+  /* Favorites compare modal cards */
+  .fav-cmp-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg);
+  }
+  .fav-cmp-card .h {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; color: var(--text); font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .fav-cmp-card .meta { font-size: 11.5px; color: var(--text-mute); margin-bottom: 6px; }
+  .fav-cmp-card .body { font-size: 12.5px; line-height: 1.55; color: var(--text-soft); }
+  .fav-cmp-section { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .fav-cmp-overall {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; margin-bottom: 14px;
+    font-size: 13px; line-height: 1.6; color: var(--text);
+  }
+  .fav-cmp-overall .ai-content { color: var(--text); }
+  .fav-cmp-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12px; margin: 10px 0 16px;
+  }
+  .fav-cmp-table th, .fav-cmp-table td {
+    border: 1px solid var(--border); padding: 6px 8px;
+    text-align: left; vertical-align: top;
+  }
+  .fav-cmp-table th {
+    background: var(--bg-soft); font-weight: 600; color: var(--text);
+  }
+  .fav-cmp-pros { color: var(--green); font-size: 12px; }
+  .fav-cmp-cons { color: var(--red); font-size: 12px; }
 
   .place-detail-view { display: none; }
   .place-detail-view.open { display: block; }
@@ -1466,6 +1639,473 @@
   .info-window .iw-ko { font-size: 12px; color: var(--text-mute); margin: 2px 0 6px; }
   .info-window .iw-rating { font-size: 12px; color: var(--orange); }
   .info-window .iw-hint { font-size: 11px; color: var(--text-mute); margin-top: 6px; }
+  .info-window .iw-btn {
+    flex: 1; padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.1s;
+  }
+  .info-window .iw-btn:hover { background: var(--bg-hover); }
+  .info-window .iw-btn-primary {
+    background: var(--accent); border-color: var(--accent); color: white;
+  }
+  .info-window .iw-btn-primary:hover {
+    background: var(--accent); filter: brightness(1.05);
+  }
+  .info-window .iw-btn-danger {
+    color: var(--red);
+    border-color: var(--border);
+  }
+  .info-window .iw-btn-danger:hover {
+    background: rgba(224, 62, 62, 0.08);
+    border-color: var(--red);
+  }
+
+  /* CALENDAR OVERLAY (over the map area) */
+  .cal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 15, 15, 0.35);
+    z-index: 7000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .cal-overlay.open { display: flex; }
+  .cal-overlay-inner {
+    width: calc(100% - 24px);
+    height: calc(100% - 24px);
+    max-width: 1400px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .cal-overlay-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .cal-overlay-title {
+    font-size: 16px; font-weight: 700; color: var(--text);
+  }
+  .cal-overlay-sub {
+    font-size: 11.5px; color: var(--text-mute); margin-top: 3px;
+  }
+  .cal-overlay-close {
+    position: absolute; top: 10px; right: 14px;
+    width: 32px; height: 32px;
+    border: none; background: transparent;
+    font-size: 22px; color: var(--text-mute);
+    cursor: pointer; border-radius: 4px;
+  }
+  .cal-overlay-close:hover { background: var(--bg-hover); color: var(--text); }
+  .cal-overlay-grid {
+    flex: 1;
+    overflow: auto;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    align-content: start;
+  }
+  .cal-cell {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    padding: 8px;
+    min-height: 0;
+    display: flex; flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .cal-cell.weekend { background: rgba(35, 131, 226, 0.04); }
+  .cal-cell.special { background: rgba(224, 62, 62, 0.05); border-color: rgba(224, 62, 62, 0.25); }
+  .cal-cell-head {
+    display: flex; align-items: baseline; gap: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .cal-cell-date {
+    font-size: 18px; font-weight: 700; color: var(--text);
+    line-height: 1;
+  }
+  .cal-cell-wd {
+    font-size: 10.5px; color: var(--text-mute); text-transform: uppercase;
+  }
+  .cal-cell-day-num {
+    margin-left: auto;
+    font-size: 10px; font-weight: 600;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    padding: 1px 5px; border-radius: 3px;
+    color: var(--text-soft);
+  }
+  .cal-cell-city {
+    font-size: 12px; font-weight: 500; color: var(--text);
+    display: flex; align-items: center; gap: 4px;
+    cursor: pointer;
+    padding: 2px 4px; border-radius: 3px;
+  }
+  .cal-cell-city:hover { background: var(--bg-hover); }
+  .cal-cell-special {
+    font-size: 10.5px; color: var(--red); font-weight: 500;
+  }
+  .cal-cell-daytrip {
+    background: rgba(82, 183, 136, 0.08);
+    border: 1px solid rgba(82, 183, 136, 0.35);
+    border-radius: 4px;
+    padding: 5px 7px;
+    line-height: 1.35;
+  }
+  .cal-cell-daytrip .dt-name {
+    font-size: 11.5px; color: var(--green); font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .cal-cell-daytrip .dt-legs {
+    display: flex; flex-direction: column; gap: 1px;
+    font-size: 10.5px; color: var(--text-soft);
+  }
+  .cal-cell-daytrip .dt-leg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-cell-transit {
+    font-size: 11px; color: var(--text-soft);
+    background: var(--bg-soft);
+    border: 1px dashed var(--border-strong);
+    border-radius: 4px;
+    padding: 4px 6px;
+    display: flex; align-items: center; gap: 5px;
+    line-height: 1.3;
+  }
+  .cal-cell-transit .ico { font-size: 12px; flex-shrink: 0; }
+  .cal-cell-transit .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cal-cell-transit .dur { font-size: 10.5px; color: var(--text-mute); flex-shrink: 0; }
+  .cal-cell-transit.empty { color: var(--text-mute); font-style: italic; }
+  .cal-cell-flight {
+    font-size: 11px; color: var(--purple); font-weight: 500;
+    background: rgba(155, 89, 182, 0.07);
+    border: 1px solid rgba(155, 89, 182, 0.3);
+    border-radius: 4px;
+    padding: 4px 6px;
+    display: flex; align-items: center; gap: 5px;
+    line-height: 1.3;
+  }
+  .cal-cell-flight .ico { font-size: 12px; flex-shrink: 0; }
+  .cal-cell-flight .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cal-cell-slots {
+    display: flex; flex-direction: column; gap: 4px;
+    flex: 1;
+    min-height: 0;
+  }
+  .cal-cell-items {
+    display: flex; flex-direction: column; gap: 2px;
+    min-height: 0;
+  }
+  .cal-cell-addslots {
+    display: flex; flex-direction: column; gap: 3px;
+    margin-top: 4px;
+  }
+  .cal-add-slot {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 6px;
+    font-size: 10.5px;
+    color: var(--text-mute);
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .cal-add-slot:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .cal-add-slot .ico { font-size: 11px; flex-shrink: 0; }
+  .cal-add-slot .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .cal-item {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 5px;
+    font-size: 10.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    line-height: 1.25;
+    min-width: 0;
+    cursor: grab;
+    transition: background 0.1s;
+  }
+  .cal-item[draggable="true"]:hover { background: var(--bg-hover); }
+  .cal-item:not([draggable="true"]) { cursor: default; }
+  .cal-item.dragging { opacity: 0.45; }
+  .cal-item.drag-over-top { box-shadow: 0 -2px 0 var(--accent); }
+  .cal-item.drag-over-bottom { box-shadow: 0 2px 0 var(--accent); }
+  .cal-item-time {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+  .cal-item-time.empty { color: var(--text-mute); font-weight: 400; }
+  .cal-item-emoji { font-size: 12px; flex-shrink: 0; }
+  .cal-item-tag {
+    font-size: 9.5px;
+    color: var(--text-soft);
+    background: var(--bg-soft);
+    border-radius: 2px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .cal-item-name {
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text);
+  }
+  .cal-item.hotel { background: rgba(74, 143, 217, 0.06); }
+  .cal-item.hotel .cal-item-tag { background: rgba(74, 143, 217, 0.18); color: #2c6ab0; }
+  .cal-item.food .cal-item-tag { background: rgba(82, 183, 136, 0.18); color: #2c8f5e; }
+  .cal-item.tour .cal-item-tag { background: rgba(232, 90, 154, 0.18); color: #b03977; }
+  .cal-item.transit .cal-item-tag { background: rgba(11, 110, 153, 0.18); color: #0b6e99; }
+  .cal-slot {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 6px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 4px;
+    background: var(--bg-soft);
+    font-size: 11.5px;
+    color: var(--text-soft);
+    cursor: pointer;
+    min-height: 28px;
+    transition: all 0.1s;
+  }
+  .cal-slot:hover {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .cal-slot.filled {
+    border-style: solid;
+    border-color: var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+  .cal-slot .ico { font-size: 13px; flex-shrink: 0; }
+  .cal-slot .nm {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex: 1; min-width: 0;
+  }
+  .cal-slot .clear {
+    font-size: 13px; color: var(--text-mute);
+    padding: 0 4px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .cal-slot .clear:hover { background: var(--bg-hover); color: var(--red); }
+
+  /* Transit detail (right sidebar) — compact card layout */
+  .tx-back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    margin: 6px 0 0;
+    transition: all 0.1s;
+  }
+  .tx-back-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }
+
+  .tx-summary {
+    margin: 12px 0 14px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(35, 131, 226, 0.08) 0%, rgba(35, 131, 226, 0.02) 100%);
+    border: 1px solid rgba(35, 131, 226, 0.25);
+    border-radius: 8px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .tx-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .tx-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .tx-stat {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    background: var(--bg);
+  }
+  .tx-stat .lbl {
+    font-size: 10.5px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .tx-stat .val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+  }
+  .tx-stat .val.small { font-size: 13px; font-weight: 600; }
+  .tx-stat .sub {
+    font-size: 11px;
+    color: var(--text-soft);
+    margin-top: 2px;
+  }
+  .tx-stat.accent { background: var(--accent-soft); border-color: var(--accent); }
+  .tx-stat.accent .val { color: var(--accent); }
+  .tx-section {
+    margin-top: 16px;
+  }
+  .tx-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-mute);
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tx-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: var(--bg);
+    margin-bottom: 6px;
+  }
+  .tx-booking-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    background: var(--bg);
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.1s;
+  }
+  .tx-booking-row:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .tx-booking-row.best {
+    border-color: var(--green);
+    background: rgba(82, 183, 136, 0.06);
+  }
+  .tx-booking-row .ico { font-size: 16px; }
+  .tx-booking-row .info { min-width: 0; }
+  .tx-booking-row .name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tx-booking-row .best-badge {
+    font-size: 10px; font-weight: 600;
+    background: var(--green); color: white;
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .tx-booking-row .note {
+    font-size: 11.5px; color: var(--text-mute); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tx-booking-row .go {
+    font-size: 14px; color: var(--text-mute);
+  }
+  .tx-tips, .tx-cautions {
+    list-style: none;
+    padding: 0; margin: 0;
+  }
+  .tx-tips li, .tx-cautions li {
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-bottom: 4px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .tx-tips li {
+    background: rgba(255, 165, 0, 0.07);
+    border: 1px solid rgba(255, 165, 0, 0.25);
+    color: var(--text);
+  }
+  .tx-cautions li {
+    background: rgba(224, 62, 62, 0.06);
+    border: 1px solid rgba(224, 62, 62, 0.22);
+    color: var(--text);
+  }
+  .tx-tips li::before { content: '💡'; flex-shrink: 0; }
+  .tx-cautions li::before { content: '⚠️'; flex-shrink: 0; }
+  .tx-tag-row {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-bottom: 8px;
+  }
+  .tx-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-soft);
+  }
+
+  /* Hotel price panel */
+  .hotel-price-panel {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  /* Map POI / city context menu */
+  .map-context-menu {
+    position: absolute;
+    z-index: 9000;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    padding: 4px;
+    min-width: 168px;
+    font-family: inherit;
+  }
+  .map-context-menu .mcm-header {
+    padding: 6px 10px 4px;
+    font-size: 11px;
+    color: var(--text-mute);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .map-context-menu .mcm-item {
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .map-context-menu .mcm-item:hover { background: var(--bg-hover); }
+  .map-context-menu .mcm-item.danger { color: var(--red); }
+  .map-context-menu .mcm-item.danger:hover { background: rgba(224, 62, 62, 0.08); }
 
   /* Item context menu (long press on map marker) */
   .item-context-menu {
@@ -1521,7 +2161,7 @@
       <button class="btn" id="deleteModeBtn" title="일정 일괄 삭제 모드">🗑️</button>
       <button class="btn" id="refreshBtn" title="최신 버전으로 새로고침 (캐시 비우기)">🔄</button>
       <button class="btn" id="resetBtn">↻ 초기화</button>
-      <button class="btn primary" id="fitBtn">⊕ 전체보기</button>
+      <button class="btn primary" id="fitBtn">📅 전체 일정</button>
       <button class="btn primary" id="aiGenerateBtn" style="background: linear-gradient(135deg, #6940a5 0%, #2383e2 100%); border: none;">✨ 추천 일정 생성</button>
     </div>
   </header>
@@ -1547,15 +2187,22 @@
     </div>
     <!-- Day filter chips (visible only in city view) -->
     <div class="day-filter" id="dayFilter" style="display:none;"></div>
-    <!-- Overview tools -->
-    <div class="map-tools" id="mapTools">
-      <button class="map-tool-btn" id="toolAdd">＋ 지도에서 추가</button>
-      <button class="map-tool-btn" id="toolDelete">🗑 마커 삭제</button>
-    </div>
     <div class="map-status" id="mapStatus">
       도시 마커를 <strong>더블클릭</strong>하면 해당 도시의 상세 지도로 진입합니다.
     </div>
     <div id="map"></div>
+
+    <!-- Calendar overlay (sized slightly smaller than the map area) -->
+    <div class="cal-overlay" id="calOverlay">
+      <div class="cal-overlay-inner" id="calOverlayInner">
+        <div class="cal-overlay-header">
+          <div class="cal-overlay-title">📅 전체 일정 캘린더</div>
+          <div class="cal-overlay-sub" id="calOverlaySub">일자별로 호텔/식당을 미리 등록해 두면 세부 일정에 자동 반영됩니다.</div>
+          <button class="cal-overlay-close" id="calOverlayCloseBtn" title="닫기">×</button>
+        </div>
+        <div class="cal-overlay-grid" id="calOverlayGrid"></div>
+      </div>
+    </div>
   </div>
 
   <aside class="sidebar sidebar-right">
@@ -1590,7 +2237,10 @@
           <div class="filter-chip active" data-sort="recommend">추천순</div>
           <div class="filter-chip" data-sort="rating">별점순</div>
           <div class="filter-chip" data-sort="reviews">리뷰많은순</div>
+          <div class="filter-chip" data-sort="favorites">★ 관심 등록 <span class="fav-count" id="favCountChip">0</span></div>
           <input class="search" id="placeSearch" placeholder="검색..." />
+          <button class="btn primary" id="favCompareBtn" title="관심 등록한 항목들을 GPT가 비교 분석합니다."
+            style="padding:5px 10px; font-size:11.5px; flex-shrink:0;">🤖 관심 비교 분석</button>
         </div>
         <div class="place-list" id="placeList"></div>
       </div>
@@ -1690,6 +2340,53 @@
     <div class="modal-footer">
       <button class="btn" data-close="saveNameModal">취소</button>
       <button class="btn primary" id="confirmSaveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Favorites compare/analyze modal -->
+<div class="modal-backdrop" id="favCompareModal">
+  <div class="modal" style="max-width: 880px;">
+    <div class="modal-header">
+      <div class="modal-title" id="favCompareTitle">🤖 관심 비교 분석</div>
+      <button class="modal-close" data-close="favCompareModal">×</button>
+    </div>
+    <div class="modal-body" id="favCompareBody"></div>
+  </div>
+</div>
+
+<!-- Transit add modal -->
+<div class="modal-backdrop" id="transitModal">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <div class="modal-title">🚆 교통 일정 추가</div>
+      <button class="modal-close" data-close="transitModal">×</button>
+    </div>
+    <div class="modal-body" id="transitModalBody">
+      <div id="transitStep1">
+        <div style="font-size:12.5px; color:var(--text-mute); margin-bottom:8px;">출발지 → 목적지</div>
+        <div style="font-size:13px; color:var(--text); margin-bottom:12px;">
+          <strong id="transitFromLabel">현재 위치</strong> →
+          <input type="text" id="transitDestInput" placeholder="목적지 도시 또는 장소명" autocomplete="off"
+            style="width: 60%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; font-family: inherit; outline: none; margin-left: 6px;" />
+        </div>
+        <div id="transitDestHint" style="font-size:11px; color:var(--text-mute); margin-bottom:12px;">
+          이탈리아 내 장소를 입력하세요. 자동완성에서 선택하거나 그대로 검색할 수 있습니다.
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn" data-close="transitModal">취소</button>
+          <button class="btn primary" id="transitDestNextBtn">다음 →</button>
+        </div>
+      </div>
+      <div id="transitStep2" style="display:none;">
+        <div style="font-size:12.5px; color:var(--text-mute); margin-bottom:8px;">추천 이동수단</div>
+        <div id="transitRouteLabel" style="font-size:13px; color:var(--text); margin-bottom:12px; font-weight:500;"></div>
+        <div id="transitOptionsList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        <div style="display:flex; gap:8px; justify-content:space-between; margin-top:14px;">
+          <button class="btn" id="transitBackBtn">← 다시</button>
+          <button class="btn" data-close="transitModal">닫기</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1846,8 +2543,116 @@ let placesService = null;
 let visibleDays = null; // null = all days visible, single number = only that dayIdx visible
 let deleteMode = false; // edit mode: show X buttons next to each item
 
+// ===== FAVORITES (관심 등록) =====
+// Persisted per category — survives reloads. Each entry stores enough to re-render
+// without another places-API call.
+let favorites = (function loadFavs() {
+  try {
+    const raw = localStorage.getItem('italy.favorites');
+    const obj = raw ? JSON.parse(raw) : {};
+    return { tour: obj.tour || [], hotel: obj.hotel || [], food: obj.food || [] };
+  } catch (_) { return { tour: [], hotel: [], food: [] }; }
+})();
+function persistFavorites() {
+  try { localStorage.setItem('italy.favorites', JSON.stringify(favorites)); } catch (_) {}
+}
+function favKey(p) {
+  // Prefer Google placeId (stable). Fall back to name+address+lat/lng for demo data.
+  if (p && p.id && !String(p.id).startsWith('demo_')) return p.id;
+  const lat = (p && typeof p.lat === 'number') ? p.lat.toFixed(4) : '';
+  const lng = (p && typeof p.lng === 'number') ? p.lng.toFixed(4) : '';
+  return `${(p && p.name) || ''}|${lat},${lng}`;
+}
+function isFavorited(category, p) {
+  const list = favorites[category] || [];
+  const k = favKey(p);
+  return list.some(f => favKey(f) === k);
+}
+function toggleFavorite(category, p) {
+  if (!favorites[category]) favorites[category] = [];
+  const k = favKey(p);
+  const idx = favorites[category].findIndex(f => favKey(f) === k);
+  if (idx >= 0) {
+    favorites[category].splice(idx, 1);
+  } else {
+    favorites[category].push({
+      id: p.id || null,
+      name: p.name,
+      category,
+      rating: p.rating || null,
+      reviewCount: p.reviewCount || 0,
+      address: p.address || '',
+      description: p.description || '',
+      lat: p.lat, lng: p.lng,
+      priceLevel: p.priceLevel != null ? p.priceLevel : (p.price_level != null ? p.price_level : null),
+      types: p.types || []
+    });
+  }
+  persistFavorites();
+}
+
 // ===== HELPERS =====
 function persist() { localStorage.setItem('italy.cities', JSON.stringify(cities)); }
+
+// ===== BASE / DAY-TRIP STRUCTURE HELPERS =====
+// Day-trips are children of a base/alpine city. They have round-trip transits
+// (outboundTransit: base→day-trip, returnTransit: day-trip→base).
+// A base city's transitToNext means: this base → next BASE (skipping day-trips).
+function isBaseLikeType(t) { return t === 'base' || t === 'alpine'; }
+function getBaseCitiesSorted() {
+  return cities.filter(c => isBaseLikeType(c.type)).sort((a, b) => a.order - b.order);
+}
+function getDayTripCities() {
+  return cities.filter(c => c.type === 'day');
+}
+// Find the parent base for a day-trip city.
+// 1) If parentBaseId is set on the day-trip, use it.
+// 2) Otherwise, match by global Day number — find the base whose days[] includes the same global day.
+// 3) Fallback: nearest preceding base by order.
+function findParentBaseForDayTrip(dayTrip) {
+  if (!dayTrip || dayTrip.type !== 'day') return null;
+  if (dayTrip.parentBaseId) {
+    const explicit = cities.find(c => c.id === dayTrip.parentBaseId);
+    if (explicit) return explicit;
+  }
+  const trip0 = (dayTrip.days || [])[0];
+  const tripGlobal = trip0 ? getGlobalDayNum(trip0, 0) : null;
+  if (tripGlobal) {
+    const bases = getBaseCitiesSorted();
+    for (const b of bases) {
+      const has = (b.days || []).some(d => getGlobalDayNum(d, 0) === tripGlobal);
+      if (has) return b;
+    }
+  }
+  // Fallback: nearest preceding base in order
+  const sorted = [...cities].sort((a, b) => a.order - b.order);
+  const idx = sorted.findIndex(c => c.id === dayTrip.id);
+  for (let i = idx - 1; i >= 0; i--) {
+    if (isBaseLikeType(sorted[i].type)) return sorted[i];
+  }
+  // No preceding base — fall through to first base
+  return getBaseCitiesSorted()[0] || null;
+}
+function getOwnedDayTrips(baseCityId) {
+  return getDayTripCities()
+    .filter(dt => {
+      const p = findParentBaseForDayTrip(dt);
+      return p && p.id === baseCityId;
+    })
+    .sort((a, b) => a.order - b.order);
+}
+// Next BASE city (skipping day-trips). Used for inter-base transitToNext.
+function getNextBase(baseCityId) {
+  const bases = getBaseCitiesSorted();
+  const idx = bases.findIndex(c => c.id === baseCityId);
+  return (idx >= 0 && idx < bases.length - 1) ? bases[idx + 1] : null;
+}
+// Previous BASE city (skipping day-trips).
+function getPrevBase(baseCityId) {
+  const bases = getBaseCitiesSorted();
+  const idx = bases.findIndex(c => c.id === baseCityId);
+  return (idx > 0) ? bases[idx - 1] : null;
+}
 function typeBadge(type) { return type === 'day' ? 'badge-day' : (type === 'alpine' ? 'badge-alpine' : 'badge-base'); }
 function typeLabel(type) { return type === 'day' ? '당일치기' : (type === 'alpine' ? '알프스/산악' : '베이스 (숙박)'); }
 function categoryEmoji(cat) {
@@ -1855,6 +2660,7 @@ function categoryEmoji(cat) {
   if (cat === 'hotel') return '🏨';
   if (cat === 'food') return '🍽️';
   if (cat === 'airport') return '✈️';
+  if (cat === 'transit') return '🚆';
   return '📍';
 }
 function categoryLabel(cat) {
@@ -1862,6 +2668,7 @@ function categoryLabel(cat) {
   if (cat === 'hotel') return '호텔';
   if (cat === 'food') return '식당';
   if (cat === 'airport') return '공항';
+  if (cat === 'transit') return '교통';
   return '기타';
 }
 function categoryColor(cat) {
@@ -1869,6 +2676,7 @@ function categoryColor(cat) {
   if (cat === 'hotel') return '#4A8FD9';
   if (cat === 'food') return '#52B788';
   if (cat === 'airport') return '#9B59B6';
+  if (cat === 'transit') return '#0B6E99';
   return '#787774';
 }
 function transitEmoji(mode) {
@@ -1947,6 +2755,7 @@ function initMap() {
     streetViewControl: false,
     fullscreenControl: false,
     zoomControl: true,
+    disableDoubleClickZoom: true,
     styles: mapPoiVisible ? MAP_STYLE_POI_VISIBLE : MAP_STYLE_POI_HIDDEN
   });
   infoWindow = new google.maps.InfoWindow();
@@ -1954,6 +2763,266 @@ function initMap() {
   updatePoiToggleUI();
   renderAll();
   setTimeout(fitToBounds, 100);
+
+  // Double-click on map → context menu
+  map.addListener('dblclick', handleMapClick);
+  // Long-press on map (mobile-friendly) → context menu
+  bindMapLongPress();
+}
+
+// Long-press on the map div → forward to handleMapClick at the lat/lng under the press
+function bindMapLongPress() {
+  const mapEl = document.getElementById('map');
+  if (!mapEl) return;
+  const LONG_PRESS_MS = 500;
+  const MOVE_THRESHOLD = 8;
+  let lpTimer = null;
+  let startX = 0, startY = 0;
+
+  const cancel = () => {
+    if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+  };
+
+  mapEl.addEventListener('pointerdown', (e) => {
+    // Ignore if interacting with our overlays (markers, controls)
+    if (e.target.closest('.gm-bundled-control, .gm-svpc, .gmnoprint, button')) return;
+    startX = e.clientX; startY = e.clientY;
+    cancel();
+    lpTimer = setTimeout(() => {
+      lpTimer = null;
+      const latLng = pixelToLatLng(startX, startY);
+      if (!latLng) return;
+      const fakeEvent = {
+        latLng,
+        domEvent: { clientX: startX, clientY: startY }
+      };
+      handleMapClick(fakeEvent);
+    }, LONG_PRESS_MS);
+  });
+  mapEl.addEventListener('pointermove', (e) => {
+    if (!lpTimer) return;
+    if (Math.abs(e.clientX - startX) > MOVE_THRESHOLD || Math.abs(e.clientY - startY) > MOVE_THRESHOLD) cancel();
+  });
+  mapEl.addEventListener('pointerup', cancel);
+  mapEl.addEventListener('pointercancel', cancel);
+  mapEl.addEventListener('pointerleave', cancel);
+}
+
+function pixelToLatLng(clientX, clientY) {
+  if (!map) return null;
+  const proj = map.getProjection();
+  if (!proj) return null;
+  const bounds = map.getBounds();
+  if (!bounds) return null;
+  const mapDiv = document.getElementById('map');
+  const rect = mapDiv.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  const ne = proj.fromLatLngToPoint(bounds.getNorthEast());
+  const sw = proj.fromLatLngToPoint(bounds.getSouthWest());
+  const scale = 1 << map.getZoom();
+  const worldX = sw.x + x / scale;
+  const worldY = ne.y + y / scale;
+  const latLng = proj.fromPointToLatLng(new google.maps.Point(worldX, worldY));
+  return latLng;
+}
+
+// ===== MAP CONTEXT MENU (POI / city click) =====
+let mapCtxMenuEl = null;
+let dayTripPickState = null; // { baseCityId } when waiting for the day-trip pick
+
+function closeMapCtxMenu() {
+  if (mapCtxMenuEl) { mapCtxMenuEl.remove(); mapCtxMenuEl = null; }
+  document.removeEventListener('click', closeMapCtxMenuOnce, true);
+}
+function closeMapCtxMenuOnce(e) {
+  if (mapCtxMenuEl && !e.target.closest('.map-context-menu')) {
+    closeMapCtxMenu();
+  }
+}
+
+// Find the closest itinerary city within `kmThreshold` of (lat, lng)
+function findCityNear(lat, lng, kmThreshold) {
+  let best = null, bestD = Infinity;
+  cities.forEach(c => {
+    const d = haversine({ lat, lng }, c);
+    if (d < bestD) { bestD = d; best = c; }
+  });
+  return (best && bestD <= kmThreshold) ? best : null;
+}
+
+function handleMapClick(e) {
+  // Only handle in overview view
+  if (currentView !== 'overview') return;
+  // If user is in legacy "add city" tool mode, do nothing here; toolbar add-mode handles it
+  if (mode === 'add' || mode === 'delete') return;
+
+  // Suppress Google's default infoWindow if a POI was clicked
+  if (e.placeId && e.stop) e.stop();
+
+  const latLng = e.latLng;
+  if (!latLng) return;
+  const screenX = (e.domEvent && e.domEvent.clientX) || (window.innerWidth / 2);
+  const screenY = (e.domEvent && e.domEvent.clientY) || (window.innerHeight / 2);
+  const lat0 = latLng.lat();
+  const lng0 = latLng.lng();
+
+  // If we're in the middle of "pick a day-trip city" flow, treat any click as the day-trip target
+  if (dayTripPickState && dayTripPickState.baseCityId) {
+    const baseId = dayTripPickState.baseCityId;
+    dayTripPickState = null;
+    if (e.placeId) {
+      addPickedDayTripCity(baseId, e.placeId, latLng);
+    } else {
+      addPickedDayTripCityByLatLng(baseId, lat0, lng0);
+    }
+    return;
+  }
+
+  // Branch: POI click vs non-POI (e.g. city name on the map → administrative label)
+  if (e.placeId && placesService) {
+    placesService.getDetails({ placeId: e.placeId, fields: ['name', 'geometry', 'types', 'address_components'] }, (place, status) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+        showMapCtxMenu(screenX, screenY, null, lat0, lng0, '');
+        return;
+      }
+      const lat = place.geometry?.location?.lat() ?? lat0;
+      const lng = place.geometry?.location?.lng() ?? lng0;
+      const matched = findCityNear(lat, lng, 5);
+      showMapCtxMenu(screenX, screenY, matched, lat, lng, place.name || '');
+    });
+    return;
+  }
+
+  // Non-POI click: reverse-geocode to find the locality (city/town) at that point.
+  // City labels on Google Maps usually don't carry a placeId in the click event.
+  if (!window.google || !google.maps.Geocoder) {
+    showMapCtxMenu(screenX, screenY, null, lat0, lng0, '');
+    return;
+  }
+  const geocoder = new google.maps.Geocoder();
+  // Show the menu immediately with a placeholder so it feels responsive,
+  // then re-render once we have the city name.
+  showMapCtxMenu(screenX, screenY, null, lat0, lng0, '...');
+  geocoder.geocode({ location: { lat: lat0, lng: lng0 } }, (results, status) => {
+    if (status !== 'OK' || !results || results.length === 0) {
+      // Keep the placeholder menu open with empty name
+      const cur = document.querySelector('.map-context-menu .mcm-header');
+      if (cur) cur.textContent = '선택한 위치';
+      return;
+    }
+    // Prefer locality, then administrative_area_level_3 / 2
+    const want = ['locality', 'administrative_area_level_3', 'administrative_area_level_2', 'administrative_area_level_1'];
+    let best = null, bestRank = 999;
+    for (const r of results) {
+      for (const t of (r.types || [])) {
+        const idx = want.indexOf(t);
+        if (idx !== -1 && idx < bestRank) {
+          bestRank = idx;
+          best = r;
+        }
+      }
+    }
+    if (!best) best = results[0];
+    let name = '';
+    const comps = best.address_components || [];
+    for (const c of comps) {
+      if (c.types && c.types.some(t => want.includes(t))) {
+        name = c.long_name; break;
+      }
+    }
+    if (!name) name = (best.formatted_address || '').split(',')[0].trim();
+    const lat = best.geometry?.location?.lat?.() ?? lat0;
+    const lng = best.geometry?.location?.lng?.() ?? lng0;
+    const matched = findCityNear(lat, lng, 5);
+    // Refresh the open menu with new info (replace the existing one)
+    showMapCtxMenu(screenX, screenY, matched, lat, lng, name);
+  });
+}
+
+function addPickedDayTripCityByLatLng(baseId, lat, lng) {
+  const baseCity = cities.find(c => c.id === baseId);
+  if (!baseCity) return;
+  if (!window.google || !google.maps.Geocoder) {
+    addCityAtLatLng(lat, lng, '새 당일치기', 'day', baseId);
+    return;
+  }
+  const geocoder = new google.maps.Geocoder();
+  setStatus('🚄 당일치기 도시 추가 중...');
+  geocoder.geocode({ location: { lat, lng } }, (results) => {
+    let name = '새 당일치기';
+    if (results && results.length > 0) {
+      const comp = (results[0].address_components || []).find(c => (c.types || []).includes('locality'))
+        || (results[0].address_components || []).find(c => (c.types || []).includes('administrative_area_level_3'));
+      if (comp) name = comp.long_name;
+      else if (results[0].formatted_address) name = results[0].formatted_address.split(',')[0].trim();
+    }
+    addCityAtLatLng(lat, lng, name, 'day', baseId);
+    setStatus(`✅ <strong>${baseCity.name}</strong>의 당일치기로 <strong>${name}</strong> 추가됨.`);
+  });
+}
+
+function showMapCtxMenu(x, y, registeredCity, lat, lng, placeName) {
+  closeMapCtxMenu();
+  mapCtxMenuEl = document.createElement('div');
+  mapCtxMenuEl.className = 'map-context-menu';
+  // Clamp to viewport
+  const left = Math.min(x, window.innerWidth - 200);
+  const top = Math.min(y, window.innerHeight - 200);
+  mapCtxMenuEl.style.left = left + 'px';
+  mapCtxMenuEl.style.top = top + 'px';
+
+  if (registeredCity) {
+    mapCtxMenuEl.innerHTML = `
+      <div class="mcm-header">${registeredCity.emoji || '📍'} ${registeredCity.name} <span style="color:var(--text-mute);">${registeredCity.ko || ''}</span></div>
+      <div class="mcm-item" data-act="day-trip">🚄 당일치기 추가</div>
+      <div class="mcm-item" data-act="enter">📋 세부 일정</div>
+      <div class="mcm-item danger" data-act="delete">🗑 도시 삭제</div>
+    `;
+  } else {
+    mapCtxMenuEl.innerHTML = `
+      <div class="mcm-header">${placeName || '선택한 위치'}</div>
+      <div class="mcm-item" data-act="add-base">📍 도시 추가</div>
+    `;
+  }
+  document.body.appendChild(mapCtxMenuEl);
+
+  mapCtxMenuEl.querySelectorAll('.mcm-item').forEach(it => {
+    it.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const act = it.dataset.act;
+      closeMapCtxMenu();
+      if (act === 'add-base') {
+        addCityAtLatLng(lat, lng, placeName ? placeName : null, 'base');
+      } else if (act === 'enter') {
+        enterCityView(registeredCity.id);
+      } else if (act === 'delete') {
+        if (confirm(`${registeredCity.name}을(를) 일정에서 삭제할까요?`)) deleteCity(registeredCity.id);
+      } else if (act === 'day-trip') {
+        dayTripPickState = { baseCityId: registeredCity.id };
+        setStatus(`🚄 <strong>${registeredCity.name}</strong>의 당일치기 도시를 지도에서 클릭하세요. (취소: 다른 곳 클릭)`);
+      }
+    });
+  });
+  setTimeout(() => document.addEventListener('click', closeMapCtxMenuOnce, true), 50);
+}
+
+function addPickedDayTripCity(baseId, placeId, latLng) {
+  const baseCity = cities.find(c => c.id === baseId);
+  if (!baseCity) return;
+  if (!placesService) return;
+  setStatus('🚄 당일치기 도시 추가 중...');
+  placesService.getDetails({ placeId, fields: ['name', 'geometry'] }, (place, status) => {
+    if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+      setStatus('당일치기 도시 정보를 가져오지 못했습니다.');
+      return;
+    }
+    const lat = place.geometry?.location?.lat() ?? latLng.lat();
+    const lng = place.geometry?.location?.lng() ?? latLng.lng();
+    const enName = place.name || '새 당일치기';
+    addCityAtLatLng(lat, lng, enName, 'day', baseId);
+    setStatus(`✅ <strong>${baseCity.name}</strong>의 당일치기로 <strong>${enName}</strong> 추가됨.`);
+  });
 }
 
 function setMapPoiVisible(visible) {
@@ -2106,11 +3175,32 @@ function renderOverviewMarkers() {
 // ===== CITY TRANSIT MGMT =====
 let cityTransitMenuEl = null;
 
-async function openCityTransitMenu(targetEl, fromId, toId) {
+// Read/write transit between two cities based on the relationship between them.
+// Possible roles:
+//  - 'inter-base' (default): base → next base, stored on fromCity.transitToNext
+//  - 'outbound': base → day-trip, stored on dayTrip.outboundTransit
+//  - 'return':   day-trip → base, stored on dayTrip.returnTransit
+function getCityTransitFor(fromCity, toCity, role) {
+  if (role === 'outbound') return toCity.outboundTransit || null;
+  if (role === 'return') return fromCity.returnTransit || null;
+  return fromCity.transitToNext || null;
+}
+function setCityTransitFor(fromCity, toCity, role, transit) {
+  if (role === 'outbound') {
+    if (transit) toCity.outboundTransit = transit; else delete toCity.outboundTransit;
+  } else if (role === 'return') {
+    if (transit) fromCity.returnTransit = transit; else delete fromCity.returnTransit;
+  } else {
+    if (transit) fromCity.transitToNext = transit; else delete fromCity.transitToNext;
+  }
+}
+
+async function openCityTransitMenu(targetEl, fromId, toId, role) {
   closeCityTransitMenu();
   const fromCity = cities.find(c => c.id === fromId);
   const toCity = cities.find(c => c.id === toId);
   if (!fromCity || !toCity) return;
+  role = role || 'inter-base';
 
   const rect = targetEl.getBoundingClientRect();
   cityTransitMenuEl = document.createElement('div');
@@ -2148,7 +3238,8 @@ async function openCityTransitMenu(targetEl, fromId, toId) {
   }
 
   if (!cityTransitMenuEl) return; // already closed
-  const current = fromCity.transitToNext?.mode || null;
+  const existingTransit = getCityTransitFor(fromCity, toCity, role);
+  const current = existingTransit && existingTransit.mode || null;
   document.getElementById('ctmContent').innerHTML = `
     <div style="padding: 4px 10px 6px; font-size: 10.5px; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.04em;">
       추천 이동수단
@@ -2175,7 +3266,8 @@ async function openCityTransitMenu(targetEl, fromId, toId) {
     item.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (item.dataset.action === 'remove') {
-        delete fromCity.transitToNext;
+        setCityTransitFor(fromCity, toCity, role, null);
+        if (role === 'inter-base') syncCityTransitToItem(fromCity);
         persist();
         renderOverviewLeft();
         closeCityTransitMenu();
@@ -2183,13 +3275,111 @@ async function openCityTransitMenu(targetEl, fromId, toId) {
       }
       const mode = item.dataset.mode;
       const duration = parseInt(item.dataset.duration, 10);
-      fromCity.transitToNext = { mode, duration };
+      const matched = (recommended || []).find(o => o.mode === mode);
+      const newTransit = { mode, duration, note: (matched && matched.note) || '' };
+      setCityTransitFor(fromCity, toCity, role, newTransit);
+      if (role === 'inter-base') syncCityTransitToItem(fromCity);
       persist();
       renderOverviewLeft();
       closeCityTransitMenu();
       setStatus(`<strong>${fromCity.name} → ${toCity.name}</strong> 이동수단을 ${transitLabel(mode)}로 설정.`);
     });
   });
+}
+
+// ===== INTER-CITY TRANSIT SYNC (overview <-> detail) =====
+// A transit item carrying inter-city movement is tagged with cityPairKey = "<fromId>->>><toId>".
+// Whenever fromCity.transitToNext changes, mirror it to a transit item in the from-city's last day.
+// Whenever such an item is added/removed/updated in detail, mirror back to fromCity.transitToNext.
+function makeCityPairKey(fromId, toId) { return `${fromId}->>>${toId}`; }
+
+function getNextCity(fromCityId) {
+  const sorted = [...cities].sort((a, b) => a.order - b.order);
+  const idx = sorted.findIndex(c => c.id === fromCityId);
+  return (idx >= 0 && idx < sorted.length - 1) ? sorted[idx + 1] : null;
+}
+
+function findPairedTransitItem(fromCity, toCity) {
+  if (!fromCity || !toCity || !fromCity.days) return null;
+  const key = makeCityPairKey(fromCity.id, toCity.id);
+  for (let dIdx = 0; dIdx < fromCity.days.length; dIdx++) {
+    const items = fromCity.days[dIdx].items || [];
+    for (let iIdx = 0; iIdx < items.length; iIdx++) {
+      if (items[iIdx].cityPairKey === key) return { dayIdx: dIdx, itemIdx: iIdx, item: items[iIdx] };
+    }
+  }
+  return null;
+}
+
+// After fromCity.transitToNext is set/updated, mirror it as a transit item in the from-city's last day
+function syncCityTransitToItem(fromCity) {
+  if (!fromCity) return;
+  const toCity = getNextCity(fromCity.id);
+  if (!toCity) return;
+  const transit = fromCity.transitToNext;
+  const existing = findPairedTransitItem(fromCity, toCity);
+
+  if (!transit || !transit.mode) {
+    // Cleared: remove the paired item if present
+    if (existing) {
+      fromCity.days[existing.dayIdx].items.splice(existing.itemIdx, 1);
+      clearAndInitTransitsForDay(fromCity.days[existing.dayIdx]);
+    }
+    return;
+  }
+
+  if (existing) {
+    // Update in place
+    existing.item.transitMode = transit.mode;
+    existing.item.duration = transit.duration || 60;
+    existing.item.transitNote = transit.note || existing.item.transitNote || '';
+    existing.item.name = `${fromCity.name} → ${toCity.name}`;
+    existing.item.fromName = fromCity.name;
+    existing.item.fromLat = fromCity.lat;
+    existing.item.fromLng = fromCity.lng;
+    existing.item.toName = toCity.name;
+    existing.item.toLat = toCity.lat;
+    existing.item.toLng = toCity.lng;
+    return;
+  }
+
+  // No existing item: append a new one to the LAST day of the from-city
+  const lastDayIdx = fromCity.days.length - 1;
+  if (lastDayIdx < 0) return;
+  const newItem = {
+    id: 'transit_' + Date.now(),
+    name: `${fromCity.name} → ${toCity.name}`,
+    category: 'transit',
+    cityPairKey: makeCityPairKey(fromCity.id, toCity.id),
+    fromName: fromCity.name, fromLat: fromCity.lat, fromLng: fromCity.lng,
+    toName: toCity.name, toLat: toCity.lat, toLng: toCity.lng,
+    transitMode: transit.mode,
+    transitNote: transit.note || '',
+    duration: transit.duration || 60,
+    description: `${transitLabel(transit.mode)} · ${transit.note || ''}`,
+    lat: toCity.lat, lng: toCity.lng
+  };
+  fromCity.days[lastDayIdx].items.push(newItem);
+  clearAndInitTransitsForDay(fromCity.days[lastDayIdx]);
+}
+
+// After a transit item is added/changed/removed in a city's day, mirror to the source city's transitToNext
+function syncTransitItemToCityPair(transitItem, fromCity, opts) {
+  // opts: { removed: boolean }
+  if (!transitItem || !transitItem.cityPairKey) return;
+  if (!fromCity) return;
+  const [, toId] = transitItem.cityPairKey.split('->>>');
+  const toCity = cities.find(c => c.id === toId);
+  if (!toCity) return;
+  if (opts && opts.removed) {
+    delete fromCity.transitToNext;
+  } else {
+    fromCity.transitToNext = {
+      mode: transitItem.transitMode,
+      duration: transitItem.duration || 60,
+      note: transitItem.transitNote || ''
+    };
+  }
 }
 
 function closeCityTransitMenu() {
@@ -2273,125 +3463,49 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
   }
 }
 
-// Show detailed transit guide in right sidebar
-async function showCityTransitDetail(fromId, toId) {
-  const fromCity = cities.find(c => c.id === fromId);
-  const toCity = cities.find(c => c.id === toId);
-  if (!fromCity || !toCity) return;
-  const transit = fromCity.transitToNext;
-  if (!transit || !transit.mode) {
-    alert('먼저 이동수단을 선택하세요.');
-    return;
-  }
-
-  document.getElementById('dayDetail').innerHTML = `
-    <div class="day-cover" style="background: linear-gradient(135deg, var(--accent) 0%, #4a9eea 100%);">
-      <div class="day-emoji">${transitEmoji(transit.mode)}</div>
-    </div>
-    <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 28px 0 4px;">
-      도시 간 이동 · ${transitLabel(transit.mode)}
-    </div>
-    <h1>${fromCity.name} → ${toCity.name}</h1>
-    <div class="day-subtitle">${fromCity.ko} → ${toCity.ko} · ${formatDuration(transit.duration)}</div>
-
-    <div class="properties">
-      <div class="prop-row"><div class="prop-label">🚉 이동수단</div><div class="prop-value">${transitEmoji(transit.mode)} ${transitLabel(transit.mode)}</div></div>
-      <div class="prop-row"><div class="prop-label">⏱ 소요시간</div><div class="prop-value">${formatDuration(transit.duration)}</div></div>
-      <div class="prop-row"><div class="prop-label">📏 거리</div><div class="prop-value">약 ${haversine(fromCity, toCity).toFixed(0)} km</div></div>
-    </div>
-
-    <div class="nblock-h2">🎫 예약 방법</div>
-    <div id="bookingInfo">
-      <div class="skeleton"></div>
-      <div class="skeleton" style="width: 85%;"></div>
-      <div class="skeleton" style="width: 70%;"></div>
-    </div>
-
-    <div class="nblock-h2">📋 이용 방법</div>
-    <div id="usageInfo">
-      <div class="skeleton"></div>
-      <div class="skeleton" style="width: 80%;"></div>
-    </div>
-
-    <div class="nblock-h2">💡 가족 여행 팁</div>
-    <div id="familyTips">
-      <div class="skeleton"></div>
-      <div class="skeleton" style="width: 75%;"></div>
-    </div>
-
-    <div class="nblock-h2">⚠️ 주의사항</div>
-    <div id="cautionInfo">
-      <div class="skeleton"></div>
-      <div class="skeleton" style="width: 70%;"></div>
-    </div>
-  `;
-  document.getElementById('chatArea').style.display = 'block';
-  document.getElementById('chatThread').innerHTML = '';
-
-  // Fetch detailed guide
-  const guide = await fetchCityTransitGuide(fromCity, toCity, transit);
-  const safeSet = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="ai-content">${html}</div>`; };
-  safeSet('bookingInfo', renderMarkdown(guide.booking));
-  safeSet('usageInfo', renderMarkdown(guide.usage));
-  safeSet('familyTips', renderMarkdown(guide.tips));
-  safeSet('cautionInfo', renderMarkdown(guide.caution));
-}
-
-async function fetchCityTransitGuide(fromCity, toCity, transit) {
-  const cacheKey = `italy.cityTransitGuide.${fromCity.id}.${toCity.id}.${transit.mode}`;
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) return JSON.parse(cached);
+// ===== AUTO-TRAIN TRANSIT (default for inter-city) =====
+// All city-to-city movement is by train. When a city is added or reordered,
+// fill in any missing transit (inter-base + day-trip outbound/return) automatically.
+async function fetchTrainTransit(fromCity, toCity) {
+  if (!fromCity || !toCity) return null;
+  const cacheKey = `italy.trainTransit.${fromCity.id || fromCity.name}.${toCity.id || toCity.name}`;
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (_) {}
 
   if (!openaiKey) {
-    const demo = {
-      booking: '**데모 모드** — OpenAI API 키 설정 시 상세 가이드 표시.\n\n- 공식 사이트 또는 앱에서 예약\n- 출발 2-3개월 전 조기 예약 권장\n- 비교 사이트 활용',
-      usage: '데모 데이터입니다.',
-      tips: '데모 데이터입니다.',
-      caution: '데모 데이터입니다.'
+    // Fallback when no API key: rough estimate from straight-line distance.
+    // Italian trains average ~100 km/h door-to-door including stops.
+    const distKm = haversine(fromCity, toCity);
+    const t = {
+      mode: 'train',
+      duration: Math.max(20, Math.round((distKm / 100) * 60)),
+      note: '기차 (자동 추정)'
     };
-    return demo;
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(t)); } catch (_) {}
+    return t;
   }
 
   try {
-    const prompt = `이탈리아 ${fromCity.name}(${fromCity.ko})에서 ${toCity.name}(${toCity.ko})까지 ${transitLabel(transit.mode)}로 이동하는 방법에 대해 가족 여행자(성인 2명 + 초6 + 초1, 2025년 12월 말~2026년 1월 초) 관점에서 상세 가이드를 작성해줘.
+    const distKm = haversine(fromCity, toCity).toFixed(0);
+    const prompt = `이탈리아 ${fromCity.name}${fromCity.ko ? `(${fromCity.ko})` : ''}에서 ${toCity.name}${toCity.ko ? `(${toCity.ko})` : ''}까지 (직선거리 약 ${distKm}km) 기차로 이동할 때 일반적인 소요시간과 노선/등급 메모를 알려줘.
+- 시간은 환승 포함 실제 소요시간 (분 단위 정수).
+- 노트는 한국어 10~25자 (예: "프레치아로사 직행", "트렌이탈리아+로컬 1회 환승", "RV 지역열차").
+- 만약 직접 기차 노선이 없다면 가장 가까운 환승 가능한 옵션의 시간을 추정해주세요.
 
-다음 4개 섹션을 각각 작성:
-
-1. **booking** (예약 방법): 어떤 회사/사이트/앱으로 예약하는지, 언제 예약하는 게 좋은지, 가격대 (€), 좌석/등급 선택 팁
-2. **usage** (이용 방법): 어느 역/공항/터미널에서 출발하는지, 도착지에서 시내 이동, 짐 보관, 필요한 서류
-3. **tips** (가족 여행 팁): 아이 동반 시 고려사항, 좌석 배치, 식사, 시간대 추천
-4. **caution** (주의사항): 자주 발생하는 문제, 12월 말 연말 시즌 특수사항, 분실/도난 주의
-
-== 중요 ==
-사이트나 앱 이름을 언급할 때 반드시 마크다운 링크 형식으로 작성하세요: [사이트이름](https://실제URL)
-예시:
-- [Trenitalia 공식](https://www.trenitalia.com)
-- [Italo](https://www.italotreno.com)
-- [Omio](https://www.omio.com)
-- [ITA Airways](https://www.ita-airways.com)
-- [Ryanair](https://www.ryanair.com)
-- [FlixBus](https://www.flixbus.com)
-- [Rome2Rio](https://www.rome2rio.com)
-
-URL은 정확하고 실제 작동하는 공식 사이트만. 추측하지 말고 확실한 것만 링크.
-
-각 섹션은 마크다운 형식 (불릿, 굵게, 링크) 사용. 한국어로 구체적이고 실용적으로.
-
-JSON 형식으로만 응답 (다른 텍스트 없이):
+JSON 형식으로만 응답:
 {
-  "booking": "...",
-  "usage": "...",
-  "tips": "...",
-  "caution": "..."
+  "duration": 95,
+  "note": "프레치아로사 직행"
 }`;
-
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.5,
+        temperature: 0.3,
         response_format: { type: 'json_object' }
       })
     });
@@ -2399,20 +3513,304 @@ JSON 형식으로만 응답 (다른 텍스트 없이):
     const data = await resp.json();
     const parsed = JSON.parse(data.choices[0].message.content);
     const result = {
-      booking: parsed.booking || '정보 없음',
-      usage: parsed.usage || '정보 없음',
-      tips: parsed.tips || '정보 없음',
-      caution: parsed.caution || '정보 없음'
+      mode: 'train',
+      duration: parseInt(parsed.duration, 10) || 60,
+      note: parsed.note || '기차'
     };
-    sessionStorage.setItem(cacheKey, JSON.stringify(result));
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch (_) {}
+    return result;
+  } catch (_) {
+    const distKm = haversine(fromCity, toCity);
+    return { mode: 'train', duration: Math.max(20, Math.round((distKm / 100) * 60)), note: '기차 (추정)' };
+  }
+}
+
+// Auto-fill missing transits across the itinerary. Does NOT overwrite user-set values.
+let _autoFillInFlight = false;
+async function autoFillMissingTransits(opts) {
+  if (_autoFillInFlight) return;
+  _autoFillInFlight = true;
+  const silent = opts && opts.silent;
+  try {
+    if (!silent) setStatus('🚆 누락된 기차 교통편을 자동으로 등록 중...');
+    const bases = getBaseCitiesSorted();
+    const dayTrips = getDayTripCities();
+    let changed = 0;
+
+    // Inter-base transits (only when missing)
+    for (let i = 0; i < bases.length - 1; i++) {
+      const from = bases[i];
+      const to = bases[i + 1];
+      if (from.transitToNext && from.transitToNext.mode) continue;
+      const t = await fetchTrainTransit(from, to);
+      if (t) {
+        from.transitToNext = t;
+        if (typeof syncCityTransitToItem === 'function') syncCityTransitToItem(from);
+        changed++;
+      }
+    }
+
+    // Day-trip outbound + return (only when missing)
+    for (const dt of dayTrips) {
+      const parent = findParentBaseForDayTrip(dt);
+      if (!parent) continue;
+      if (!dt.outboundTransit || !dt.outboundTransit.mode) {
+        const t = await fetchTrainTransit(parent, dt);
+        if (t) { dt.outboundTransit = t; changed++; }
+      }
+      if (!dt.returnTransit || !dt.returnTransit.mode) {
+        const t = await fetchTrainTransit(dt, parent);
+        if (t) { dt.returnTransit = t; changed++; }
+      }
+    }
+
+    if (changed > 0) {
+      persist();
+      if (currentView === 'overview') renderOverviewLeft();
+      if (calendarPopupOpen) renderCalendarPopup();
+    }
+    if (!silent) {
+      setStatus(changed > 0
+        ? `🚆 <strong>${changed}개</strong> 기차 교통편이 자동 등록되었습니다.`
+        : '🚆 새로 등록할 누락 교통편이 없습니다.');
+    }
+  } finally {
+    _autoFillInFlight = false;
+  }
+}
+
+// Show detailed transit guide in right sidebar
+async function showCityTransitDetail(fromId, toId, role) {
+  const fromCity = cities.find(c => c.id === fromId);
+  const toCity = cities.find(c => c.id === toId);
+  if (!fromCity || !toCity) return;
+  role = role || 'inter-base';
+  const transit = getCityTransitFor(fromCity, toCity, role);
+  if (!transit || !transit.mode) {
+    alert('먼저 이동수단을 선택하세요.');
+    return;
+  }
+
+  const distKm = haversine(fromCity, toCity).toFixed(0);
+  document.getElementById('dayDetail').innerHTML = `
+    <div class="day-cover" style="background: linear-gradient(135deg, var(--accent) 0%, #4a9eea 100%);">
+      <div class="day-emoji">${transitEmoji(transit.mode)}</div>
+    </div>
+    <button class="tx-back-btn" id="txBackBtn" type="button">← 일정으로 돌아가기</button>
+    <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 14px 0 4px;">
+      도시 간 이동 · ${transitLabel(transit.mode)}
+    </div>
+    <h1>${fromCity.name} → ${toCity.name}</h1>
+    <div class="day-subtitle">${fromCity.ko || ''} → ${toCity.ko || ''}${transit.note ? ` · ${transit.note}` : ''}</div>
+
+    <div class="tx-grid cols-3" style="margin-top:14px;">
+      <div class="tx-stat accent">
+        <div class="lbl">소요시간</div>
+        <div class="val">${formatDuration(transit.duration)}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">이동수단</div>
+        <div class="val small">${transitEmoji(transit.mode)} ${transitLabel(transit.mode)}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">거리</div>
+        <div class="val small">약 ${distKm} km</div>
+      </div>
+    </div>
+
+    <div id="txGuideContent">
+      <div class="skeleton" style="margin: 8px 0;"></div>
+      <div class="skeleton" style="margin: 8px 0; width: 85%;"></div>
+      <div class="skeleton" style="margin: 8px 0; width: 70%;"></div>
+      <div style="font-size:11.5px;color:var(--text-mute); text-align:center; margin-top:10px;">
+        GPT가 핵심 정보를 정리 중...
+      </div>
+    </div>
+  `;
+  document.getElementById('chatArea').style.display = 'block';
+  document.getElementById('chatThread').innerHTML = '';
+
+  // Close button → back to the previous right-panel view
+  const backBtn = document.getElementById('txBackBtn');
+  if (backBtn) backBtn.addEventListener('click', closeTransitDetailPanel);
+
+  // Fetch summary card data (new structured format)
+  try {
+    const guide = await fetchCityTransitGuide(fromCity, toCity, transit);
+    renderTransitGuideCards(document.getElementById('txGuideContent'), guide);
+  } catch (err) {
+    const el = document.getElementById('txGuideContent');
+    if (el) el.innerHTML = `<div style="color:var(--red);font-size:12px;">가이드 생성 실패: ${err.message}</div>`;
+  }
+}
+
+// Restore right sidebar to the contextual default (calendar / city overview).
+function closeTransitDetailPanel() {
+  document.getElementById('chatArea').style.display = 'none';
+  if (currentView === 'city' && currentCityId && cities.find(c => c.id === currentCityId)) {
+    renderCityRight();
+  } else {
+    renderEmptyRight();
+  }
+}
+
+function renderTransitGuideCards(target, guide) {
+  if (!target) return;
+  if (!guide) { target.innerHTML = ''; return; }
+  const bookingSitesHtml = (guide.bookingSites || []).map(s => `
+    <a class="tx-booking-row ${s.best ? 'best' : ''}" href="${s.url || '#'}" target="_blank" rel="noopener">
+      <span class="ico">${s.best ? '⭐' : '🔗'}</span>
+      <div class="info">
+        <div class="name">${s.name || ''}${s.best ? '<span class="best-badge">추천</span>' : ''}</div>
+        ${s.note ? `<div class="note">${s.note}</div>` : ''}
+      </div>
+      <span class="go">→</span>
+    </a>
+  `).join('') || '<div style="font-size:11.5px;color:var(--text-mute);">예약 사이트 정보 없음</div>';
+
+  const tagsHtml = [];
+  if (guide.service) tagsHtml.push(`<span class="tx-tag">🚆 ${guide.service}</span>`);
+  if (guide.bookTiming) tagsHtml.push(`<span class="tx-tag">📅 ${guide.bookTiming}</span>`);
+  if (guide.luggage) tagsHtml.push(`<span class="tx-tag">🧳 ${guide.luggage}</span>`);
+
+  target.innerHTML = `
+    ${guide.summary ? `<div class="tx-summary">💬 ${guide.summary}</div>` : ''}
+
+    <div class="tx-grid">
+      <div class="tx-stat">
+        <div class="lbl">🚉 출발지</div>
+        <div class="val small">${guide.departure || '정보 없음'}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">🏁 도착지</div>
+        <div class="val small">${guide.arrival || '정보 없음'}</div>
+      </div>
+    </div>
+
+    <div class="tx-grid">
+      <div class="tx-stat">
+        <div class="lbl">💰 1인 요금</div>
+        <div class="val small">${guide.priceRange || '정보 없음'}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">👨‍👩‍👧 가족 4인</div>
+        <div class="val small">${guide.familyPrice || '정보 없음'}</div>
+      </div>
+    </div>
+
+    ${tagsHtml.length > 0 ? `<div class="tx-tag-row">${tagsHtml.join('')}</div>` : ''}
+
+    <div class="tx-section">
+      <div class="tx-section-title">🎫 예약 사이트</div>
+      ${bookingSitesHtml}
+    </div>
+
+    ${(guide.quickTips && guide.quickTips.length > 0) ? `
+      <div class="tx-section">
+        <div class="tx-section-title">💡 핵심 팁</div>
+        <ul class="tx-tips">
+          ${guide.quickTips.map(t => `<li>${t}</li>`).join('')}
+        </ul>
+      </div>
+    ` : ''}
+
+    ${(guide.cautions && guide.cautions.length > 0) ? `
+      <div class="tx-section">
+        <div class="tx-section-title">⚠️ 주의사항</div>
+        <ul class="tx-cautions">
+          ${guide.cautions.map(c => `<li>${c}</li>`).join('')}
+        </ul>
+      </div>
+    ` : ''}
+  `;
+}
+
+async function fetchCityTransitGuide(fromCity, toCity, transit) {
+  // v2 schema (cards). Use a fresh cache namespace.
+  const cacheKey = `italy.cityTransitGuideV2.${fromCity.id || fromCity.name}.${toCity.id || toCity.name}.${transit.mode}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (_) {}
+  }
+
+  if (!openaiKey) {
+    return {
+      summary: '⚠️ OpenAI API 키를 설정하면 GPT가 정리한 핵심 정보가 표시됩니다. 지금은 데모 데이터입니다.',
+      departure: '출발역/터미널 (데모)',
+      arrival: '도착역/터미널 (데모)',
+      service: transit.mode === 'train' ? '고속열차 (Frecciarossa/Italo)' : transitLabel(transit.mode),
+      priceRange: '€30~80',
+      familyPrice: '€120~250',
+      bookTiming: '출발 1-2개월 전',
+      luggage: '대형 캐리어 OK',
+      bookingSites: [
+        { name: 'Trenitalia', url: 'https://www.trenitalia.com', note: '공식 (데모)', best: true },
+        { name: 'Italo', url: 'https://www.italotreno.com', note: '민영 고속철 (데모)' },
+        { name: 'Omio', url: 'https://www.omio.com', note: '비교/예매 통합' }
+      ],
+      quickTips: ['데모 팁입니다.'],
+      cautions: ['데모 주의사항입니다.']
+    };
+  }
+
+  try {
+    const prompt = `이탈리아 ${fromCity.name}${fromCity.ko ? `(${fromCity.ko})` : ''}에서 ${toCity.name}${toCity.ko ? `(${toCity.ko})` : ''}까지 ${transitLabel(transit.mode)} 이동을 가족 여행자(성인 2명 + 초6 + 초1, 2025년 12월 말~2026년 1월 초) 관점에서 한눈에 보이는 카드형 핵심 정보로 정리해줘.
+
+다음 JSON 형식으로만 응답 (다른 텍스트 없이):
+{
+  "summary": "한국어 1문장 (40자 이내). 이 구간 핵심 한 줄.",
+  "departure": "출발 역/터미널 (예: 'Roma Termini')",
+  "arrival": "도착 역/터미널 (예: 'Firenze SMN')",
+  "service": "추천 노선/등급 짧게 (예: '프레치아로사 직행', 'ITA 항공 직항')",
+  "priceRange": "1인 요금대 (예: '€35~80', 'KRW 5만~12만')",
+  "familyPrice": "가족 4인 총액 추정 (예: '€140~320')",
+  "bookTiming": "추천 예약 시점 짧게 (예: '출발 1-2개월 전')",
+  "luggage": "수하물/짐 관련 한 줄 (예: '대형 캐리어 무료', '23kg 1개 포함')",
+  "bookingSites": [
+    {"name": "사이트명", "url": "https://...", "note": "한국어 한 줄 (15자 이내)", "best": true},
+    {"name": "사이트명", "url": "https://...", "note": "한 줄"}
+  ],
+  "quickTips": ["짧은 팁 1 (한국어 25자 이내)", "팁 2", "팁 3"],
+  "cautions": ["짧은 주의사항 1", "주의사항 2"]
+}
+
+규칙:
+- 모든 필드 한국어. 길게 풀어쓰지 말고 핵심만.
+- bookingSites: 2~4개. 가장 추천하는 곳은 best:true. URL은 실제 작동하는 공식 사이트만.
+- quickTips: 3~5개 짧은 문구. 가족 여행 + 12월 말 시즌 관점.
+- cautions: 1~3개 짧은 문구.
+- 추측·불확실은 빼고 확실한 정보만.`;
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        response_format: { type: 'json_object' }
+      })
+    });
+    if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+    const data = await resp.json();
+    const parsed = JSON.parse(data.choices[0].message.content);
+    const result = {
+      summary: parsed.summary || '',
+      departure: parsed.departure || '',
+      arrival: parsed.arrival || '',
+      service: parsed.service || '',
+      priceRange: parsed.priceRange || '',
+      familyPrice: parsed.familyPrice || '',
+      bookTiming: parsed.bookTiming || '',
+      luggage: parsed.luggage || '',
+      bookingSites: Array.isArray(parsed.bookingSites) ? parsed.bookingSites : [],
+      quickTips: Array.isArray(parsed.quickTips) ? parsed.quickTips : [],
+      cautions: Array.isArray(parsed.cautions) ? parsed.cautions : []
+    };
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(result)); } catch (_) {}
     return result;
   } catch (err) {
-    return {
-      booking: '가이드 생성 실패: ' + err.message,
-      usage: '',
-      tips: '',
-      caution: ''
-    };
+    throw err;
   }
 }
 
@@ -2469,12 +3867,30 @@ async function reverseGeocodeForCity(lat, lng) {
 function showCityInfoWindow(city, marker) {
   const content = `
     <div class="info-window">
-      <div class="iw-title">${city.emoji || '📍'} ${city.name}</div>
-      <div class="iw-ko">${city.ko} · ${city.nights}</div>
-      <div class="iw-hint">💡 더블클릭으로 도시 상세 보기</div>
+      <div class="iw-title">${city.emoji || '📍'} ${city.name} <span style="color:var(--text-mute);font-weight:400;font-size:11.5px;">${city.ko || ''}</span></div>
+      <div class="iw-actions" style="display:flex;gap:6px;margin-top:6px;">
+        <button class="iw-btn iw-btn-primary" data-act="enter">세부 일정</button>
+        <button class="iw-btn iw-btn-danger" data-act="delete">도시 삭제</button>
+      </div>
     </div>`;
   infoWindow.setContent(content);
   infoWindow.open(map, marker);
+  google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
+    const root = document.querySelector('.gm-style-iw .info-window');
+    if (!root) return;
+    const enterBtn = root.querySelector('[data-act="enter"]');
+    const delBtn = root.querySelector('[data-act="delete"]');
+    if (enterBtn) enterBtn.addEventListener('click', () => {
+      infoWindow.close();
+      enterCityView(city.id);
+    });
+    if (delBtn) delBtn.addEventListener('click', () => {
+      if (confirm(`${city.name}을(를) 일정에서 삭제할까요?`)) {
+        infoWindow.close();
+        deleteCity(city.id);
+      }
+    });
+  });
 }
 
 function renderRoute() {
@@ -2526,6 +3942,24 @@ function haversine(a, b) {
 }
 
 // ===== DAY FILTER =====
+function getGlobalDayNum(day, fallbackIdx) {
+  // Prefer the global day number embedded in the day title (e.g., "Day 5 · 피렌체 도착")
+  if (day && typeof day.title === 'string') {
+    const m = day.title.match(/Day\s*(\d+)/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return (day && day.dayNum) || (fallbackIdx + 1);
+}
+
+function applyDayFilterToSidebar() {
+  // Show/hide day-section blocks in left sidebar to match the top filter
+  document.querySelectorAll('#daySections .day-section').forEach(section => {
+    const idx = parseInt(section.dataset.dayIdx, 10);
+    const hidden = visibleDays !== null && visibleDays !== idx;
+    section.classList.toggle('day-section-hidden', hidden);
+  });
+}
+
 function renderDayFilter() {
   const el = document.getElementById('dayFilter');
   if (currentView !== 'city' || !currentCityId) {
@@ -2557,10 +3991,11 @@ function renderDayFilter() {
       ? `background: ${color}; border-color: ${color}; color: white;`
       : `border-color: ${color};`;
     const dotStyle = isActive ? '' : `background: ${color};`;
+    const label = getGlobalDayNum(day, idx);
     return `
       <div class="day-chip ${isActive ? 'active' : ''}" data-idx="${idx}" style="${style}">
         <span class="dot" style="${dotStyle}"></span>
-        <span>Day ${day.dayNum || idx + 1}</span>
+        <span>Day ${label}</span>
       </div>
     `;
   }).join('');
@@ -2586,8 +4021,11 @@ function renderDayFilter() {
       }
       renderDayFilter();
       renderCityPlacesOnMap();
+      applyDayFilterToSidebar();
     });
   });
+
+  applyDayFilterToSidebar();
 }
 
 // Kept for backwards compatibility (used by code paths that might call it)
@@ -2685,7 +4123,9 @@ function showItemContextMenu(marker, dayIdx, itemIdx) {
   document.body.appendChild(div);
   div.querySelector('[data-action="delete"]').addEventListener('click', () => {
     const city = cities.find(c => c.id === currentCityId);
+    const removed = city.days[dayIdx].items[itemIdx];
     city.days[dayIdx].items.splice(itemIdx, 1);
+    if (removed && removed.cityPairKey) syncTransitItemToCityPair(removed, city, { removed: true });
     persist();
     renderCityLeft();
     renderCityPlacesOnMap();
@@ -2713,65 +4153,105 @@ function renderLeft() {
 
 function renderOverviewLeft() {
   const left = document.getElementById('leftScroll');
-  const sorted = [...cities].sort((a, b) => a.order - b.order);
+  const bases = getBaseCitiesSorted();
+
+  // Render a city row — supports both base and nested day-trip styling
+  const renderCityRow = (city, opts = {}) => {
+    const isNested = !!opts.nested;
+    return `
+      <div class="city-row ${isNested ? 'nested' : ''} ${city.id === selectedId ? 'active' : ''}" data-id="${city.id}">
+        <div class="city-num ${city.type}">${city.order}</div>
+        <div class="city-info">
+          <div class="city-name">${city.emoji || ''} ${city.name} <span class="ko">${city.ko}</span></div>
+          <div class="city-meta">${city.day || ''} · ${city.nights}</div>
+        </div>
+        <div class="city-actions">
+          <button class="icon-btn" data-action="enter" title="도시 상세">→</button>
+          <button class="icon-btn" data-action="delete" title="삭제">×</button>
+        </div>
+      </div>
+    `;
+  };
+
+  // Render a transit segment given a {mode,duration,note}-shaped object (or null) and a label/route key
+  const renderTransitSegment = (transit, fromId, toId, opts = {}) => {
+    const cls = `city-transit ${opts.nested ? 'nested' : ''} ${opts.role || ''}`;
+    const label = opts.label || '';
+    if (transit && transit.mode) {
+      return `
+        <div class="${cls}" data-from="${fromId}" data-to="${toId}" data-role="${opts.role || ''}">
+          <span class="ct-icon">${transitEmoji(transit.mode)}</span>
+          <span class="ct-info">
+            ${label ? `<span class="ct-route-label">${label}</span>` : ''}
+            <span class="ct-mode">${transitLabel(transit.mode)}</span>
+            <span class="ct-duration">⏱ ${formatDuration(transit.duration || 0)}</span>
+          </span>
+          <span class="ct-actions">
+            <button class="ct-detail-btn" data-action="detail">자세히</button>
+          </span>
+        </div>
+      `;
+    }
+    return `
+      <div class="${cls} empty" data-from="${fromId}" data-to="${toId}" data-role="${opts.role || ''}">
+        <span class="ct-icon">＋</span>
+        <span class="ct-info">
+          ${label ? `<span class="ct-route-label">${label}</span>` : ''}
+          <span class="ct-empty-text">이동수단 추가 (GPT 추천)</span>
+        </span>
+      </div>
+    `;
+  };
+
+  // Build the city list HTML: walk bases in order, nest day-trips under each
+  let cityListHtml = '';
+  bases.forEach((base, bIdx) => {
+    cityListHtml += renderCityRow(base);
+
+    // Nested day-trips for this base (with outbound + return transits)
+    const trips = getOwnedDayTrips(base.id);
+    if (trips.length > 0) {
+      cityListHtml += `<div class="city-trips-group" data-base="${base.id}">`;
+      trips.forEach(trip => {
+        cityListHtml += renderTransitSegment(trip.outboundTransit, base.id, trip.id, {
+          nested: true, role: 'outbound', label: `${base.name} → ${trip.name}`
+        });
+        cityListHtml += renderCityRow(trip, { nested: true });
+        cityListHtml += renderTransitSegment(trip.returnTransit, trip.id, base.id, {
+          nested: true, role: 'return', label: `${trip.name} → ${base.name}`
+        });
+      });
+      cityListHtml += `</div>`;
+    }
+
+    // Inter-base transit (this base → next base)
+    const nextBase = bases[bIdx + 1];
+    if (nextBase) {
+      cityListHtml += renderTransitSegment(base.transitToNext, base.id, nextBase.id, {
+        role: 'inter-base', label: `${base.name} → ${nextBase.name}`
+      });
+    }
+  });
+
   left.innerHTML = `
     <div class="sb-header">
       <div class="sb-eyebrow">📍 Itinerary</div>
       <div class="sb-title">도시 목록</div>
-      <div class="sb-desc">마커를 더블클릭으로 도시 상세 진입</div>
+      <div class="sb-desc">베이스 도시 아래에 당일치기가 들여쓰기되어 표시됩니다.</div>
     </div>
     <div class="sb-divider"></div>
     <div class="sb-section-label">
       <span>Cities</span><span>${cities.length}</span>
     </div>
     <div class="city-list">
-      ${sorted.map((city, idx) => {
-        let html = `
-          <div class="city-row ${city.id === selectedId ? 'active' : ''}" data-id="${city.id}">
-            <div class="city-num ${city.type}">${city.order}</div>
-            <div class="city-info">
-              <div class="city-name">${city.emoji || ''} ${city.name} <span class="ko">${city.ko}</span></div>
-              <div class="city-meta">${city.day || ''} · ${city.nights}</div>
-            </div>
-            <div class="city-actions">
-              <button class="icon-btn" data-action="enter" title="도시 상세">→</button>
-              <button class="icon-btn" data-action="delete" title="삭제">×</button>
-            </div>
-          </div>
-        `;
-        // Transit segment to next city
-        if (idx < sorted.length - 1) {
-          const nextCity = sorted[idx + 1];
-          const transit = city.transitToNext;
-          if (transit && transit.mode) {
-            html += `
-              <div class="city-transit" data-from="${city.id}" data-to="${nextCity.id}">
-                <span class="ct-icon">${transitEmoji(transit.mode)}</span>
-                <span class="ct-info">
-                  <span class="ct-mode">${transitLabel(transit.mode)}</span>
-                  <span class="ct-duration">⏱ ${formatDuration(transit.duration || 0)}</span>
-                </span>
-                <span class="ct-actions">
-                  <button class="ct-detail-btn" data-action="detail">자세히</button>
-                </span>
-              </div>
-            `;
-          } else {
-            html += `
-              <div class="city-transit empty" data-from="${city.id}" data-to="${nextCity.id}">
-                <span class="ct-icon">＋</span>
-                <span class="ct-info">
-                  <span class="ct-empty-text">이동수단 추가 (GPT 추천)</span>
-                </span>
-              </div>
-            `;
-          }
-        }
-        return html;
-      }).join('')}
+      ${cityListHtml}
     </div>
 
     <div style="padding: 4px 14px 16px;">
+      <div class="add-item-btn" id="autoFillTransitBtn" style="margin-bottom: 6px; border: 1px dashed var(--border-strong); color: var(--text-soft);">
+        <span style="font-size:14px;">🚆</span>
+        <span>누락된 기차 교통편 자동 등록</span>
+      </div>
       <div class="add-item-btn" id="toggleAddCityBtn">
         <span style="font-size:16px;">＋</span>
         <span>새 도시 추가</span>
@@ -2813,22 +4293,29 @@ function renderOverviewLeft() {
     });
   });
 
-  // Bind city transit clicks
+  // Long-press to reorder cities (works on mouse + touch via Pointer Events)
+  bindCityRowLongPressReorder(left);
+
+  // Bind transit "자세히" button clicks only — segment body itself is no longer interactive
+  // since transit is auto-registered by GPT and shouldn't be edited via a picker menu here.
   left.querySelectorAll('.city-transit').forEach(el => {
     const fromId = el.dataset.from;
     const toId = el.dataset.to;
-    el.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action="detail"]')) return;
-      openCityTransitMenu(el, fromId, toId);
-    });
+    const role = el.dataset.role || 'inter-base';
     const detailBtn = el.querySelector('[data-action="detail"]');
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        showCityTransitDetail(fromId, toId);
+        showCityTransitDetail(fromId, toId, role);
       });
     }
   });
+
+  // Auto-fill missing train transits
+  const autoFillBtn = document.getElementById('autoFillTransitBtn');
+  if (autoFillBtn) {
+    autoFillBtn.addEventListener('click', () => autoFillMissingTransits());
+  }
 
   // Add city form toggle and submit
   const toggleBtn = document.getElementById('toggleAddCityBtn');
@@ -2884,10 +4371,56 @@ function renderCityLeft() {
   if (currentView === 'city') renderDayFilter();
 }
 
+// Find any 'day' (day-trip) cities whose first day matches this base city's global day number
+function findDayTripsForGlobalDay(globalDayNum, excludeCityId) {
+  if (!globalDayNum) return [];
+  return cities.filter(c => {
+    if (c.id === excludeCityId) return false;
+    if (c.type !== 'day') return false;
+    if (!c.days || c.days.length === 0) return false;
+    return c.days.some(d => getGlobalDayNum(d, 0) === globalDayNum);
+  }).map(c => ({
+    city: c,
+    day: c.days.find(d => getGlobalDayNum(d, 0) === globalDayNum) || c.days[0]
+  }));
+}
+
+function renderDayTripEmbed(baseCity, baseDay) {
+  const globalNum = getGlobalDayNum(baseDay, 0);
+  const trips = findDayTripsForGlobalDay(globalNum, baseCity.id);
+  if (trips.length === 0) return '';
+  return trips.map(({ city, day }) => {
+    const items = (day.items || []);
+    const itemsHtml = items.length > 0
+      ? items.map((it, i) => `
+          <div class="dte-item">
+            <span class="dte-emoji">${categoryEmoji(it.category)}</span>
+            <div>
+              <div class="dte-name">${i + 1}. ${it.name}</div>
+              <div class="dte-meta">${categoryLabel(it.category)}${it.startTime ? ` · ${it.startTime}` : ''}${it.duration ? ` · ${formatDuration(it.duration)}` : ''}</div>
+            </div>
+            <span></span>
+          </div>
+        `).join('')
+      : `<div class="dte-empty">아직 ${city.name} 당일치기 일정이 비어있습니다.</div>`;
+    return `
+      <div class="day-trip-embed" data-trip-city="${city.id}">
+        <div class="dte-header">
+          <span>${city.emoji || '🚄'}</span>
+          <span>${city.name} 당일치기</span>
+          <button class="dte-link" data-act="enter-trip" data-trip-city="${city.id}">편집 →</button>
+        </div>
+        ${itemsHtml}
+      </div>
+    `;
+  }).join('');
+}
+
 function renderDaySection(city, day, dayIdx) {
   let bodyHtml = '';
   day.items.forEach((item, itemIdx) => {
-    bodyHtml += renderItemCard(item, dayIdx, itemIdx);
+    const isLast = itemIdx === day.items.length - 1;
+    bodyHtml += renderItemCard(item, dayIdx, itemIdx, isLast);
     if (itemIdx < day.items.length - 1) {
       const transit = item.transitTo || { mode: 'walk', duration: 0, pending: true };
       const isPending = !!transit.pending;
@@ -2906,6 +4439,12 @@ function renderDaySection(city, day, dayIdx) {
       `;
     }
   });
+
+  // Auto-include day-trip cities scheduled on this same global day (only for base/alpine cities)
+  if (city.type !== 'day') {
+    bodyHtml += renderDayTripEmbed(city, day);
+  }
+
   bodyHtml += `
     <div class="add-item-btn" data-day-idx="${dayIdx}">
       <span>＋</span>
@@ -2926,9 +4465,17 @@ function renderDaySection(city, day, dayIdx) {
   `;
 }
 
-function renderItemCard(item, dayIdx, itemIdx) {
+function renderItemCard(item, dayIdx, itemIdx, isLast) {
   const dur = item.duration || 60;
   const startTime = item.startTime || '';
+  // End time = startTime + duration (only show for last item in day)
+  let endTimeHtml = '';
+  if (isLast && startTime) {
+    const end = addMinutesToTime(startTime, dur);
+    if (end) {
+      endTimeHtml = `<span class="item-end-time">종료 <strong>${end}</strong></span>`;
+    }
+  }
   return `
     <div class="item-card" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" draggable="true">
       <span class="item-drag-handle">⋮⋮</span>
@@ -2941,17 +4488,58 @@ function renderItemCard(item, dayIdx, itemIdx) {
         </div>
       </div>
       <span class="time-stack">
-        <span class="item-start-time ${startTime ? '' : 'placeholder'}" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" title="시작 시간 수정">
-          ${startTime || '시간 +'}
+        <span class="time-pill">
+          <span class="item-start-time ${startTime ? '' : 'placeholder'}" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" title="시작 시간 수정">${startTime || '시간 +'}</span>
+          <span class="time-pill-sep">(</span>
+          <span class="item-duration" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" data-type="item" title="소요시간 수정">${formatDuration(dur)}</span>
+          <span class="time-pill-sep">)</span>
         </span>
-        <span class="item-duration" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" data-type="item">
-          <span class="clock">⏱</span>
-          <span>${formatDuration(dur)}</span>
-        </span>
+        ${endTimeHtml}
       </span>
       <span class="item-delete-x" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" title="삭제">×</span>
     </div>
   `;
+}
+
+// Time arithmetic helpers
+function parseTime(timeStr) {
+  if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+function formatTime(totalMinutes) {
+  if (typeof totalMinutes !== 'number' || isNaN(totalMinutes)) return null;
+  // Normalize to 0-23:59 range (handle day-wrap)
+  let m = totalMinutes;
+  while (m < 0) m += 24 * 60;
+  m = m % (24 * 60);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+}
+function addMinutesToTime(timeStr, minutes) {
+  const mins = parseTime(timeStr);
+  if (mins === null) return null;
+  return formatTime(mins + (minutes || 0));
+}
+
+// Recompute startTime for items AFTER `anchorIdx` in a day.
+// anchorIdx's startTime is kept as-is; each subsequent item gets:
+//   prevStart + prev.duration + prev.transitTo.duration
+function cascadeStartTimes(day, anchorIdx) {
+  if (!day || !day.items || day.items.length === 0) return;
+  for (let i = anchorIdx; i < day.items.length - 1; i++) {
+    const cur = day.items[i];
+    const next = day.items[i + 1];
+    if (!cur.startTime) continue;
+    const curStart = parseTime(cur.startTime);
+    if (curStart === null) continue;
+    const dur = cur.duration || 0;
+    const transit = cur.transitTo;
+    const transitDur = (transit && !transit.pending) ? (transit.duration || 0) : 0;
+    next.startTime = formatTime(curStart + dur + transitDur);
+  }
 }
 
 function bindDaySectionEvents() {
@@ -2962,6 +4550,15 @@ function bindDaySectionEvents() {
     header.addEventListener('click', (e) => {
       if (e.target.closest('.day-section-drag-handle')) return;
       header.parentElement.classList.toggle('collapsed');
+    });
+  });
+
+  // Day-trip embed: "편집 →" jumps into the day-trip city's view
+  left.querySelectorAll('.day-trip-embed [data-act="enter-trip"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tripId = btn.dataset.tripCity;
+      if (tripId) enterCityView(tripId);
     });
   });
 
@@ -3024,9 +4621,6 @@ function bindItemEvents() {
 
   let draggedItem = null;
   left.querySelectorAll('.item-card').forEach(card => {
-    let pressTimer = null;
-    let didLongPress = false;
-
     card.addEventListener('dragstart', (e) => {
       if (deleteMode) { e.preventDefault(); return; }
       e.stopPropagation();
@@ -3034,7 +4628,6 @@ function bindItemEvents() {
       card.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('type', 'item');
-      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
@@ -3065,34 +4658,9 @@ function bindItemEvents() {
       moveItem(fromDay, fromItem, toDay, toItem, before);
     });
 
-    // Long-press → open replace menu
-    const startPress = (e) => {
-      if (e.target.closest('.item-duration') || e.target.closest('.item-drag-handle') || e.target.closest('.item-delete-x')) return;
-      if (deleteMode) return;
-      didLongPress = false;
-      pressTimer = setTimeout(() => {
-        didLongPress = true;
-        card.classList.add('long-press');
-        setTimeout(() => card.classList.remove('long-press'), 300);
-        const dayIdx = parseInt(card.dataset.dayIdx, 10);
-        const itemIdx = parseInt(card.dataset.itemIdx, 10);
-        openReplaceMenu(dayIdx, itemIdx);
-      }, 550);
-    };
-    const cancelPress = () => {
-      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    };
-    card.addEventListener('mousedown', startPress);
-    card.addEventListener('mouseup', cancelPress);
-    card.addEventListener('mouseleave', cancelPress);
-    card.addEventListener('touchstart', startPress, { passive: true });
-    card.addEventListener('touchend', cancelPress);
-    card.addEventListener('touchmove', cancelPress);
-
-    // Click → show place details on right (unless long-press happened)
+    // Click → show place details on right (long-press replaced by sidebar 변경 button)
     card.addEventListener('click', (e) => {
-      if (didLongPress) { didLongPress = false; return; }
-      if (e.target.closest('.item-duration') || e.target.closest('.item-drag-handle') || e.target.closest('.item-delete-x')) return;
+      if (e.target.closest('.item-duration') || e.target.closest('.item-start-time') || e.target.closest('.item-drag-handle') || e.target.closest('.item-delete-x')) return;
       if (deleteMode) return;
       const dayIdx = parseInt(card.dataset.dayIdx, 10);
       const itemIdx = parseInt(card.dataset.itemIdx, 10);
@@ -3163,6 +4731,8 @@ function startEditTime(el) {
     } else {
       delete item.startTime;
     }
+    // Cascade: recompute all subsequent items in this day based on this one
+    cascadeStartTimes(city.days[dayIdx], itemIdx);
     persist();
     renderCityLeft();
   }
@@ -3176,7 +4746,12 @@ function startEditTime(el) {
 async function deleteItemAndRecompute(dayIdx, itemIdx) {
   const city = cities.find(c => c.id === currentCityId);
   if (!city) return;
+  const removed = city.days[dayIdx].items[itemIdx];
   city.days[dayIdx].items.splice(itemIdx, 1);
+  // If the deleted item was a synced inter-city transit, clear the source city's transitToNext
+  if (removed && removed.cityPairKey) {
+    syncTransitItemToCityPair(removed, city, { removed: true });
+  }
   // Wipe and re-init transits for this day
   clearAndInitTransitsForDay(city.days[dayIdx]);
   persist();
@@ -3217,6 +4792,8 @@ function startEditDuration(el) {
         city.days[dayIdx].items[itemIdx].transitTo.duration = newMin;
       }
     }
+    // Cascade time changes to subsequent items
+    cascadeStartTimes(city.days[dayIdx], itemIdx);
     persist();
     renderCityLeft();
   }
@@ -3276,6 +4853,7 @@ async function openTransitMenu(el) {
       mode = await suggestTransitMode(from, to);
       duration = await estimateTransitDuration(from, to, mode);
       from.transitTo = { mode, duration };
+      cascadeStartTimes(city.days[dayIdx], itemIdx);
       persist();
       renderCityLeft();
     }
@@ -3312,6 +4890,130 @@ function closeTransitMenuOnce(e) {
     closeTransitMenu();
     document.removeEventListener('click', closeTransitMenuOnce);
   }
+}
+
+// ===== CITY REORDER (long-press in overview sidebar) =====
+function moveCityOrder(fromId, toId, before) {
+  const oldSorted = [...cities].sort((a, b) => a.order - b.order);
+  if (oldSorted.length < 2) return;
+  const oldNextOf = {};
+  oldSorted.forEach((c, i) => { oldNextOf[c.id] = (oldSorted[i + 1] && oldSorted[i + 1].id) || null; });
+
+  const sorted = oldSorted.slice();
+  const fromIdx = sorted.findIndex(c => c.id === fromId);
+  if (fromIdx === -1) return;
+  const [moved] = sorted.splice(fromIdx, 1);
+  let toIdx = sorted.findIndex(c => c.id === toId);
+  if (toIdx === -1) {
+    sorted.push(moved);
+  } else {
+    if (!before) toIdx += 1;
+    sorted.splice(toIdx, 0, moved);
+  }
+  // Reassign order and clear stale transitToNext where the next-neighbor changed
+  sorted.forEach((c, i) => {
+    c.order = i + 1;
+    const newNext = (sorted[i + 1] && sorted[i + 1].id) || null;
+    if (oldNextOf[c.id] !== newNext) {
+      delete c.transitToNext;
+    }
+  });
+  persist();
+  renderOverviewLeft();
+  // Refill any transit that was just cleared (or never set) with train via GPT
+  autoFillMissingTransits();
+}
+
+function bindCityRowLongPressReorder(left) {
+  const LONG_PRESS_MS = 500;
+  const MOVE_THRESHOLD = 8;
+  let pressTimer = null;
+  let armedRow = null;
+  let dragState = null; // { row, id }
+  let startX = 0, startY = 0;
+
+  const cleanupHover = () => {
+    document.querySelectorAll('.city-row.drag-over-top, .city-row.drag-over-bottom')
+      .forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+  };
+
+  const onMove = (e) => {
+    if (!dragState) return;
+    e.preventDefault();
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const overRow = target ? target.closest('.city-row') : null;
+    cleanupHover();
+    if (!overRow || overRow === dragState.row) return;
+    const rect = overRow.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    if (e.clientY < mid) overRow.classList.add('drag-over-top');
+    else overRow.classList.add('drag-over-bottom');
+  };
+
+  const onUp = (e) => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    if (!dragState) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const overRow = target ? target.closest('.city-row') : null;
+    const myRow = dragState.row;
+    const myId = dragState.id;
+    cleanupHover();
+    myRow.classList.remove('dragging');
+    dragState = null;
+    if (overRow && overRow !== myRow) {
+      const rect = overRow.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      const before = e.clientY < mid;
+      moveCityOrder(myId, overRow.dataset.id, before);
+    }
+  };
+
+  const cancelArm = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    if (armedRow) { armedRow.classList.remove('long-press-armed'); armedRow = null; }
+  };
+
+  left.querySelectorAll('.city-row').forEach(row => {
+    row.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest('[data-action]')) return;
+      startX = e.clientX; startY = e.clientY;
+      cancelArm();
+      armedRow = row;
+      row.classList.add('long-press-armed');
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        if (armedRow) armedRow.classList.remove('long-press-armed');
+        armedRow = null;
+        dragState = { row, id: row.dataset.id };
+        row.classList.add('dragging');
+        if (navigator.vibrate) { try { navigator.vibrate(30); } catch (_) {} }
+        // Swallow the click that fires after pointerup so selectCity doesn't run
+        const swallowClick = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          document.removeEventListener('click', swallowClick, true);
+        };
+        document.addEventListener('click', swallowClick, true);
+        // Safety net: detach if no click arrives within a short window
+        setTimeout(() => document.removeEventListener('click', swallowClick, true), 500);
+        document.addEventListener('pointermove', onMove, { passive: false });
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+      }, LONG_PRESS_MS);
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (!pressTimer) return;
+      if (Math.abs(e.clientX - startX) > MOVE_THRESHOLD || Math.abs(e.clientY - startY) > MOVE_THRESHOLD) {
+        cancelArm();
+      }
+    });
+    row.addEventListener('pointerup', cancelArm);
+    row.addEventListener('pointercancel', cancelArm);
+    row.addEventListener('pointerleave', cancelArm);
+  });
 }
 
 function moveDaySection(fromIdx, toIdx, insertBefore) {
@@ -3391,6 +5093,8 @@ async function refreshDayTransits(day) {
       const mode = await suggestTransitMode(from, to);
       const duration = await estimateTransitDuration(from, to, mode);
       from.transitTo = { mode, duration };
+      // Cascade times based on this updated transit duration
+      cascadeStartTimes(day, i);
       persist();
       if (currentView === 'city' && currentCityId) renderCityLeft();
     } catch (err) {
@@ -3483,6 +5187,7 @@ function openAddMenu(targetBtn, dayIdx) {
     <div class="add-menu-item" data-cat="tour"><span class="ico">🎫</span> 관광지</div>
     <div class="add-menu-item" data-cat="hotel"><span class="ico">🏨</span> 호텔</div>
     <div class="add-menu-item" data-cat="food"><span class="ico">🍽️</span> 식당</div>
+    <div class="add-menu-item" data-cat="transit"><span class="ico">🚆</span> 교통</div>
   `;
   if (showAirport) {
     const label = isFirstDayOfTrip ? '✈️ 로마 공항 (FCO 도착)' : '✈️ 밀라노 공항 (출국)';
@@ -3503,6 +5208,8 @@ function openAddMenu(targetBtn, dayIdx) {
       if (cat === 'airport') {
         const type = item.dataset.airportType;
         addAirportItem(dayIdx, type);
+      } else if (cat === 'transit') {
+        openTransitDestModal(dayIdx);
       } else {
         openPlacesModal(cat, dayIdx);
       }
@@ -3574,6 +5281,230 @@ function closeAddMenu() { if (addMenuEl) { addMenuEl.remove(); addMenuEl = null;
 function closeAddMenuOnce() {
   closeAddMenu();
   document.removeEventListener('click', closeAddMenuOnce);
+}
+
+// ===== TRANSIT (교통) ADD =====
+let transitDestState = null; // { dayIdx, fromCity, dest: {name, lat, lng}, options: [...] }
+let transitAutocomplete = null;
+
+function openTransitDestModal(dayIdx) {
+  const city = cities.find(c => c.id === currentCityId);
+  if (!city) return;
+
+  // Determine starting point: last item in this day with coords, else city center
+  const day = city.days[dayIdx];
+  let fromName = city.name, fromLat = city.lat, fromLng = city.lng;
+  if (day && day.items && day.items.length > 0) {
+    for (let i = day.items.length - 1; i >= 0; i--) {
+      const it = day.items[i];
+      if (it.lat && it.lng) {
+        fromName = it.name;
+        fromLat = it.lat;
+        fromLng = it.lng;
+        break;
+      }
+    }
+  }
+
+  transitDestState = {
+    dayIdx,
+    from: { name: fromName, lat: fromLat, lng: fromLng },
+    dest: null,
+    options: []
+  };
+
+  document.getElementById('transitFromLabel').textContent = fromName;
+  document.getElementById('transitDestInput').value = '';
+  document.getElementById('transitStep1').style.display = '';
+  document.getElementById('transitStep2').style.display = 'none';
+  document.getElementById('transitModal').classList.add('open');
+
+  setTimeout(() => {
+    const input = document.getElementById('transitDestInput');
+    input.focus();
+    // Wire up Google Places Autocomplete (Italy bias)
+    if (window.google && google.maps.places && google.maps.places.Autocomplete) {
+      try {
+        transitAutocomplete = new google.maps.places.Autocomplete(input, {
+          componentRestrictions: { country: 'it' },
+          fields: ['name', 'geometry', 'formatted_address']
+        });
+        transitAutocomplete.addListener('place_changed', () => {
+          const place = transitAutocomplete.getPlace();
+          if (place && place.geometry) {
+            transitDestState.dest = {
+              name: place.name || input.value,
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+              address: place.formatted_address || ''
+            };
+          }
+        });
+      } catch (_) {}
+    }
+  }, 50);
+}
+
+function bindTransitModalButtons() {
+  const nextBtn = document.getElementById('transitDestNextBtn');
+  const backBtn = document.getElementById('transitBackBtn');
+  const input = document.getElementById('transitDestInput');
+  if (nextBtn && !nextBtn.dataset.bound) {
+    nextBtn.dataset.bound = '1';
+    nextBtn.addEventListener('click', onTransitDestNext);
+  }
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.dataset.bound = '1';
+    backBtn.addEventListener('click', () => {
+      document.getElementById('transitStep1').style.display = '';
+      document.getElementById('transitStep2').style.display = 'none';
+    });
+  }
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = '1';
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); onTransitDestNext(); }
+    });
+  }
+}
+// Bind once when script loads (HTML modal already exists in DOM)
+bindTransitModalButtons();
+
+async function onTransitDestNext() {
+  if (!transitDestState) return;
+  const input = document.getElementById('transitDestInput');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+
+  // If no place was selected via autocomplete, geocode the text
+  if (!transitDestState.dest || transitDestState.dest.name.toLowerCase() !== text.toLowerCase()) {
+    if (window.google && google.maps.Geocoder) {
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const res = await new Promise((resolve, reject) => {
+          geocoder.geocode({ address: text + ', Italy' }, (results, status) => {
+            if (status === 'OK' && results && results[0]) resolve(results[0]);
+            else reject(status);
+          });
+        });
+        transitDestState.dest = {
+          name: text,
+          lat: res.geometry.location.lat(),
+          lng: res.geometry.location.lng(),
+          address: res.formatted_address || ''
+        };
+      } catch (_) {
+        transitDestState.dest = { name: text, lat: null, lng: null, address: '' };
+      }
+    } else {
+      transitDestState.dest = { name: text, lat: null, lng: null, address: '' };
+    }
+  }
+
+  // Show step 2 with loading
+  document.getElementById('transitStep1').style.display = 'none';
+  document.getElementById('transitStep2').style.display = '';
+  document.getElementById('transitRouteLabel').textContent = `${transitDestState.from.name} → ${transitDestState.dest.name}`;
+  const list = document.getElementById('transitOptionsList');
+  list.innerHTML = `
+    <div style="padding:14px; font-size:12px; color:var(--text-mute); text-align:center;">
+      <div class="skeleton" style="margin: 4px 0;"></div>
+      <div class="skeleton" style="margin: 4px 0; width: 80%;"></div>
+      <div style="margin-top:8px;">GPT가 추천 이동수단을 분석 중...</div>
+    </div>
+  `;
+
+  // Fetch options
+  const fakeFrom = { name: transitDestState.from.name, ko: '', lat: transitDestState.from.lat, lng: transitDestState.from.lng };
+  const fakeTo = { name: transitDestState.dest.name, ko: '', lat: transitDestState.dest.lat, lng: transitDestState.dest.lng };
+  let opts;
+  try {
+    opts = await fetchCityTransitOptions(fakeFrom, fakeTo);
+  } catch (_) {
+    opts = getFallbackCityTransitOptions(fakeFrom, fakeTo);
+  }
+  transitDestState.options = opts;
+  renderTransitOptionsList();
+}
+
+function renderTransitOptionsList() {
+  const list = document.getElementById('transitOptionsList');
+  if (!transitDestState || !transitDestState.options || transitDestState.options.length === 0) {
+    list.innerHTML = '<div style="padding:14px; color:var(--text-mute); font-size:12px; text-align:center;">추천 옵션을 가져오지 못했습니다.</div>';
+    return;
+  }
+  list.innerHTML = transitDestState.options.map((opt, idx) => `
+    <div class="transit-opt-row" data-idx="${idx}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:background 0.1s;">
+      <span style="font-size:20px;">${transitEmoji(opt.mode)}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:500; color:var(--text);">${transitLabel(opt.mode)}</div>
+        <div style="font-size:11.5px; color:var(--text-mute); margin-top:2px;">${opt.note || ''}</div>
+      </div>
+      <div style="font-size:12px; color:var(--text-soft); padding:3px 8px; background:var(--bg-soft); border-radius:3px;">${formatDuration(opt.duration)}</div>
+    </div>
+  `).join('');
+  list.querySelectorAll('.transit-opt-row').forEach(row => {
+    row.addEventListener('mouseenter', () => row.style.background = 'var(--bg-hover)');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+    row.addEventListener('click', () => {
+      const idx = parseInt(row.dataset.idx, 10);
+      addTransitItemFromState(idx);
+    });
+  });
+}
+
+function addTransitItemFromState(optIdx) {
+  if (!transitDestState) return;
+  const opt = transitDestState.options[optIdx];
+  if (!opt) return;
+  const city = cities.find(c => c.id === currentCityId);
+  if (!city) return;
+  const day = city.days[transitDestState.dayIdx];
+  if (!day) return;
+
+  const transitItem = {
+    id: 'transit_' + Date.now(),
+    name: `${transitDestState.from.name} → ${transitDestState.dest.name}`,
+    category: 'transit',
+    address: transitDestState.dest.address || '',
+    lat: transitDestState.dest.lat,
+    lng: transitDestState.dest.lng,
+    fromName: transitDestState.from.name,
+    fromLat: transitDestState.from.lat,
+    fromLng: transitDestState.from.lng,
+    toName: transitDestState.dest.name,
+    toLat: transitDestState.dest.lat,
+    toLng: transitDestState.dest.lng,
+    transitMode: opt.mode,
+    transitNote: opt.note || '',
+    duration: opt.duration || 60,
+    description: `${transitLabel(opt.mode)} · ${opt.note || ''}`
+  };
+
+  // If the destination matches the next sorted city of the current city, link them
+  const nextCity = getNextCity(city.id);
+  if (nextCity && transitItem.toLat && transitItem.toLng) {
+    const dist = haversine({ lat: transitItem.toLat, lng: transitItem.toLng }, nextCity);
+    if (dist <= 8) {
+      transitItem.cityPairKey = makeCityPairKey(city.id, nextCity.id);
+      // Snap to the canonical next-city coords/name so both views stay consistent
+      transitItem.toName = nextCity.name;
+      transitItem.toLat = nextCity.lat;
+      transitItem.toLng = nextCity.lng;
+      transitItem.name = `${city.name} → ${nextCity.name}`;
+      city.transitToNext = { mode: opt.mode, duration: opt.duration || 60, note: opt.note || '' };
+    }
+  }
+
+  day.items.push(transitItem);
+  clearAndInitTransitsForDay(day);
+  persist();
+  document.getElementById('transitModal').classList.remove('open');
+  transitDestState = null;
+  renderCityLeft();
+  renderCityPlacesOnMap();
+  refreshDayTransits(day);
+  setStatus(`🚆 <strong>${transitItem.name}</strong> 교통 일정이 추가되었습니다.`);
 }
 
 // ===== PLACES SEARCH (modal) =====
@@ -3706,20 +5637,38 @@ function getDemoPlaces(category, city) {
 
 function renderPlacesList() {
   const sortBy = currentPlaceSort;
-  let sorted = [...currentPlaceList];
-  if (sortBy === 'rating') sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  else if (sortBy === 'reviews') sorted.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+  const isFavView = sortBy === 'favorites';
+  let sorted;
+  if (isFavView) {
+    // Source from favorites for the current category
+    sorted = [...((favorites && favorites[currentPlaceCategory]) || [])];
+  } else {
+    sorted = [...currentPlaceList];
+    if (sortBy === 'rating') sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    else if (sortBy === 'reviews') sorted.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+  }
 
-  const search = document.getElementById('placeSearch').value.toLowerCase();
-  if (search) sorted = sorted.filter(p => p.name.toLowerCase().includes(search));
+  const searchEl = document.getElementById('placeSearch');
+  const search = searchEl ? searchEl.value.toLowerCase() : '';
+  if (search) sorted = sorted.filter(p => (p.name || '').toLowerCase().includes(search));
 
   const city = cities.find(c => c.id === currentCityId);
   const existingNames = new Set();
   if (city) city.days.forEach(d => d.items.forEach(i => existingNames.add(i.name)));
 
+  // Update favorites count chip
+  const favCountEl = document.getElementById('favCountChip');
+  if (favCountEl) favCountEl.textContent = String(((favorites && favorites[currentPlaceCategory]) || []).length);
+
   const list = document.getElementById('placeList');
   if (sorted.length === 0) {
-    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-mute);font-size:13px;">결과가 없습니다.</div>`;
+    if (isFavView) {
+      list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-mute);font-size:13px;">
+        아직 ${categoryLabel(currentPlaceCategory)} 관심 등록 항목이 없습니다.<br>추천순/별점순/리뷰많은순에서 ★ 버튼을 눌러 등록하세요.
+      </div>`;
+    } else {
+      list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-mute);font-size:13px;">결과가 없습니다.</div>`;
+    }
     return;
   }
   const isReplaceMode = pendingReplaceItemIdx !== null;
@@ -3736,22 +5685,26 @@ function renderPlacesList() {
     } else {
       btnLabel = '+ 추가';
     }
+    const isFav = isFavorited(currentPlaceCategory, p);
+    const favBtnLabel = isFav ? '★ 등록됨' : '☆ 관심';
     return `
       <div class="place-row" data-idx="${idx}">
-        <div class="place-rank">${idx + 1}</div>
+        <div class="place-rank">${isFavView ? '★' : (idx + 1)}</div>
         <div>
           <div class="place-detail-name">
-            <span class="emoji">${categoryEmoji(p.category)}</span>
+            <span class="emoji">${categoryEmoji(p.category || currentPlaceCategory)}</span>
             <span>${p.name}</span>
           </div>
           <div class="place-detail-meta">
             ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : ''}
+            ${p.priceLevel != null ? `<span style="color:var(--text-mute);">${'₩'.repeat((p.priceLevel || 0) + 1)}</span>` : ''}
           </div>
           ${p.description ? `<div class="place-detail-desc">${p.description}</div>` : ''}
         </div>
-        <button class="${btnClass}" data-idx="${idx}">
-          ${btnLabel}
-        </button>
+        <div class="place-actions">
+          <button class="${btnClass}" data-act="add" data-idx="${idx}">${btnLabel}</button>
+          <button class="fav-toggle-btn ${isFav ? 'fav' : ''}" data-act="fav" data-idx="${idx}" title="관심 등록 토글">${favBtnLabel}</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -3759,23 +5712,211 @@ function renderPlacesList() {
   list.querySelectorAll('.place-row').forEach(row => {
     const idx = parseInt(row.dataset.idx, 10);
     row.addEventListener('dblclick', () => showPlaceDetail(sorted[idx]));
-    row.querySelector('.place-add-btn').addEventListener('click', (e) => {
+    const addBtn = row.querySelector('[data-act="add"]');
+    if (addBtn) addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (isReplaceMode) {
         addPlaceToDay(sorted[idx], pendingDayIdx, pendingReplaceItemIdx);
-        // Reset and close modal after replace
         pendingReplaceItemIdx = null;
         document.getElementById('placesModal').classList.remove('open');
+        maybeRestoreFromCalendarPick();
       } else {
         addPlaceToDay(sorted[idx], pendingDayIdx);
+        if (calendarPickRestore) {
+          document.getElementById('placesModal').classList.remove('open');
+          maybeRestoreFromCalendarPick();
+        }
       }
     });
+    const favBtn = row.querySelector('[data-act="fav"]');
+    if (favBtn) favBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFavorite(currentPlaceCategory, sorted[idx]);
+      renderPlacesList();
+    });
   });
+}
+
+// ===== FAVORITES COMPARE/ANALYZE =====
+async function openFavCompareModal() {
+  const cat = currentPlaceCategory;
+  const list = (favorites && favorites[cat]) || [];
+  if (list.length === 0) {
+    alert(`${categoryLabel(cat)} 관심 등록된 항목이 없습니다.\n먼저 항목 옆 ☆ 관심 버튼을 눌러 등록하세요.`);
+    return;
+  }
+  if (list.length === 1) {
+    if (!confirm('관심 등록된 항목이 1개입니다. 비교 대신 개별 평가만 표시됩니다. 계속할까요?')) return;
+  }
+
+  document.getElementById('favCompareTitle').textContent = `🤖 ${categoryLabel(cat)} 관심 비교 분석 (${list.length}개)`;
+  const body = document.getElementById('favCompareBody');
+  body.innerHTML = `
+    <div style="font-size:12px; color:var(--text-mute); margin-bottom:10px;">
+      관심 등록한 ${list.length}개의 ${categoryLabel(cat)}을(를) GPT가 비교합니다. 리뷰 총평·장단점·가격대·추천 대상 등을 분석합니다.
+    </div>
+    <div id="favCompareCards" style="margin-bottom:14px;">
+      ${list.map(p => `
+        <div class="fav-cmp-card">
+          <div class="h">${categoryEmoji(cat)} ${p.name}</div>
+          <div class="meta">
+            ${p.rating ? `★ ${p.rating}` : ''}
+            ${p.reviewCount ? ` · ${p.reviewCount.toLocaleString()} 리뷰` : ''}
+            ${p.priceLevel != null ? ` · 가격대 ${'₩'.repeat((p.priceLevel || 0) + 1)}` : ''}
+            ${p.address ? ` · ${p.address.slice(0, 50)}` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="fav-cmp-section">📋 종합 비교</div>
+    <div id="favCmpResult">
+      <div class="skeleton"></div>
+      <div class="skeleton" style="width: 90%;"></div>
+      <div class="skeleton" style="width: 80%;"></div>
+      <div style="font-size:11px; color:var(--text-mute); margin-top:8px;">GPT가 분석 중입니다...</div>
+    </div>
+  `;
+  document.getElementById('favCompareModal').classList.add('open');
+
+  try {
+    const result = await fetchFavCompareAnalysis(cat, list);
+    renderFavCompareResult(result, cat);
+  } catch (err) {
+    document.getElementById('favCmpResult').innerHTML =
+      `<div style="color:var(--red); font-size:12px;">분석 실패: ${err.message}</div>`;
+  }
+}
+
+async function fetchFavCompareAnalysis(category, items) {
+  if (!openaiKey) {
+    return {
+      overall: '⚠️ OpenAI API 키를 설정하면 실제 GPT 비교 분석이 표시됩니다. 지금은 데모 데이터입니다.',
+      table: items.map(p => ({
+        name: p.name,
+        summary: '데모 요약: 평점과 리뷰 기반 일반적 평가',
+        pros: ['데모 장점 1', '데모 장점 2'],
+        cons: ['데모 단점 1'],
+        priceTier: p.priceLevel != null ? '₩'.repeat((p.priceLevel || 0) + 1) : '정보 없음',
+        bestFor: '데모: 가족 / 커플 / 친구',
+        recommendation: ''
+      })),
+      ranking: items.map((p, i) => ({ rank: i + 1, name: p.name, why: '데모 데이터' }))
+    };
+  }
+
+  const aspectsPrompt = category === 'hotel'
+    ? '청결도, 위치, 가격대(예: ₩, ₩₩, ₩₩₩, ₩₩₩₩ + 대략적 1박 가격대), 시설/부대시설, 가족 친화도, 접근성'
+    : category === 'food'
+      ? '맛, 가격대(₩~₩₩₩₩ + 객단가 추정), 분위기, 가족 친화도(어린이 메뉴 등), 위치/접근성'
+      : '볼거리, 가격대(입장료 등), 혼잡도, 가족 적합도(특히 초등 자녀 동반), 소요시간, 접근성';
+
+  const itemsList = items.map((p, i) => {
+    return `${i + 1}. ${p.name} (★${p.rating || '?'} · ${p.reviewCount || 0} 리뷰${p.priceLevel != null ? ` · 가격대 ${'₩'.repeat((p.priceLevel || 0) + 1)}` : ''}${p.address ? ` · ${p.address}` : ''})`;
+  }).join('\n');
+
+  const prompt = `이탈리아 여행에서 다음 ${categoryLabel(category)} 후보들을 가족 여행자(성인 2명 + 초등 6학년 + 초등 1학년, 12월 말 ~ 1월 초 겨울)의 관점에서 비교 분석해줘.
+
+후보:
+${itemsList}
+
+평가 항목: ${aspectsPrompt}
+
+각 후보에 대해 일반 방문객 리뷰를 종합한 다음 정보:
+- summary: 한국어 1-2문장의 리뷰 총평
+- pros: 장점 2-4개 (한국어 짧은 문구)
+- cons: 단점 1-3개 (한국어 짧은 문구)
+- priceTier: ₩~₩₩₩₩ 표기 + 한국어 가격 설명 (예: "₩₩₩ · 1박 ~25만원")
+- bestFor: 한 줄 — 어떤 사람에게 가장 추천할지
+
+또한:
+- overall: 한국어 3-5문장 — 전체적인 비교 총평 (어떤 측면에서 차이가 큰지, 의사결정 시 고려할 점)
+- ranking: 가족 여행 관점에서 추천 순위. 각 항목 {rank, name, why(한국어 한 줄)}
+
+JSON 형식으로만 응답 (다른 텍스트 없이):
+{
+  "overall": "...",
+  "table": [
+    {"name": "...", "summary": "...", "pros": ["..."], "cons": ["..."], "priceTier": "...", "bestFor": "..."},
+    ...
+  ],
+  "ranking": [
+    {"rank": 1, "name": "...", "why": "..."},
+    ...
+  ]
+}`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  const data = await resp.json();
+  return JSON.parse(data.choices[0].message.content);
+}
+
+function renderFavCompareResult(result, category) {
+  const target = document.getElementById('favCmpResult');
+  if (!target) return;
+  const tbl = result.table || [];
+  const ranking = result.ranking || [];
+  let html = '';
+  if (result.overall) {
+    html += `<div class="fav-cmp-overall"><div class="ai-content">${renderMarkdown(result.overall)}</div></div>`;
+  }
+  if (tbl.length > 0) {
+    html += `<div class="fav-cmp-section">🔍 항목별 분석</div>`;
+    html += `<table class="fav-cmp-table">
+      <thead><tr>
+        <th style="width: 22%;">이름</th>
+        <th>리뷰 총평</th>
+        <th style="width: 18%;">장점</th>
+        <th style="width: 18%;">단점</th>
+        <th style="width: 14%;">가격대</th>
+        <th style="width: 18%;">추천 대상</th>
+      </tr></thead>
+      <tbody>
+        ${tbl.map(r => `
+          <tr>
+            <td><strong>${r.name || ''}</strong></td>
+            <td>${r.summary || ''}</td>
+            <td><div class="fav-cmp-pros">${(r.pros || []).map(x => `• ${x}`).join('<br>')}</div></td>
+            <td><div class="fav-cmp-cons">${(r.cons || []).map(x => `• ${x}`).join('<br>')}</div></td>
+            <td>${r.priceTier || ''}</td>
+            <td>${r.bestFor || ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+  }
+  if (ranking.length > 0) {
+    html += `<div class="fav-cmp-section">🏆 추천 순위 (가족 여행 기준)</div>`;
+    html += ranking.map(r => `
+      <div class="fav-cmp-card">
+        <div class="h">${r.rank}. ${r.name}</div>
+        <div class="body">${r.why || ''}</div>
+      </div>
+    `).join('');
+  }
+  target.innerHTML = html || '<div style="color:var(--text-mute); font-size:12px;">분석 결과가 비어 있습니다.</div>';
 }
 
 async function addPlaceToDay(place, dayIdx, replaceItemIdx) {
   const city = cities.find(c => c.id === currentCityId);
   const duration = await estimatePlaceDuration(place);
+
+  // If launched from the calendar's lunch/dinner add-slot, set a sensible default startTime
+  let defaultStart;
+  if (calendarPickRestore && calendarPickRestore.mealHint && place.category === 'food') {
+    defaultStart = calendarPickRestore.mealHint === 'lunch' ? '12:30' : '19:00';
+  } else if (calendarPickRestore && calendarPickRestore.targetCategory === 'hotel' && place.category === 'hotel') {
+    defaultStart = '15:00';
+  }
 
   const newItem = {
     id: place.id || ('p_' + Math.random().toString(36).slice(2)),
@@ -3787,7 +5928,8 @@ async function addPlaceToDay(place, dayIdx, replaceItemIdx) {
     lat: place.lat,
     lng: place.lng,
     description: place.description,
-    duration: duration
+    duration: duration,
+    ...(defaultStart ? { startTime: defaultStart } : {})
   };
 
   const items = city.days[dayIdx].items;
@@ -3811,6 +5953,7 @@ async function addPlaceToDay(place, dayIdx, replaceItemIdx) {
   if (document.getElementById('placeList')) renderPlacesList();
   renderCityLeft();
   renderCityPlacesOnMap();
+  if (calendarPopupOpen) renderCalendarPopup();
 
   // Async re-recommend affected transits
   refreshDayTransits(city.days[dayIdx]);
@@ -4084,6 +6227,45 @@ const SPECIAL_DATES = {
   '1/1':  '🎊 새해 첫날'
 };
 
+// Map each global day to the BASE city you sleep in, plus any day-trips happening that day.
+// Used by the calendar popup which treats day-trips as side excursions, not nights.
+function buildBaseCalendarMapping() {
+  const bases = getBaseCitiesSorted();
+  const dayTrips = getDayTripCities();
+  const mapping = [];
+  let globalDayIdx = 0;
+  let prevBaseId = null;
+  for (const base of bases) {
+    const nDays = (base.days || []).length;
+    for (let bdi = 0; bdi < nDays; bdi++) {
+      if (globalDayIdx >= TRIP_DAYS) break;
+      const date = new Date(TRIP_START);
+      date.setDate(date.getDate() + globalDayIdx);
+      const day = base.days[bdi];
+      const globalNum = getGlobalDayNum(day, globalDayIdx);
+      const trips = dayTrips.filter(dt => (dt.days || []).some(d => getGlobalDayNum(d, 0) === globalNum));
+      mapping.push({
+        date, globalDayIdx,
+        baseCity: base, baseDayIdx: bdi, day,
+        dayTrips: trips,
+        isFirstOfBase: bdi === 0,
+        isLastOfBase: bdi === nDays - 1,
+        previousBaseId: prevBaseId,
+        globalDayNum: globalNum
+      });
+      prevBaseId = base.id;
+      globalDayIdx++;
+    }
+    if (globalDayIdx >= TRIP_DAYS) break;
+  }
+  while (mapping.length < TRIP_DAYS) {
+    const date = new Date(TRIP_START);
+    date.setDate(date.getDate() + mapping.length);
+    mapping.push({ date, globalDayIdx: mapping.length, baseCity: null, dayTrips: [], previousBaseId: null });
+  }
+  return mapping;
+}
+
 // Map each of 14 days to its city + dayIdx
 function buildCalendarMapping() {
   const sorted = [...cities].sort((a, b) => a.order - b.order);
@@ -4137,6 +6319,448 @@ function summarizeDayItems(items) {
     return `<span class="cit">${tm}<span class="cit-em">${categoryEmoji(it.category)}</span>${it.name}</span>`;
   }).join('<span class="cit-sep">·</span>');
   return html + (more > 0 ? `<span class="cit-sep">·</span><span style="color:var(--text-mute);">외 ${more}개</span>` : '');
+}
+
+// ===== CALENDAR POPUP (over the map) =====
+// State for the calendar popup so it can route place picks back to the right city/day
+let calendarPopupOpen = false;
+let calendarPickPending = null; // { cityId, dayIdx, category }
+
+function openCalendarPopup() {
+  calendarPopupOpen = true;
+  renderCalendarPopup();
+  document.getElementById('calOverlay').classList.add('open');
+}
+function closeCalendarPopup() {
+  calendarPopupOpen = false;
+  document.getElementById('calOverlay').classList.remove('open');
+}
+
+function findItemInDayByCategory(day, category) {
+  if (!day || !day.items) return null;
+  return day.items.find(it => it.category === category) || null;
+}
+
+// Classify a food item as 점심 vs 저녁 (or generic 식사) by its start time.
+function classifyFoodMeal(item) {
+  if (!item || !item.startTime) return null;
+  const m = item.startTime.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  if (h < 16) return '점심';
+  return '저녁';
+}
+
+// Find the first hotel item used during a base city's stay (across all its days).
+function findBaseHotelInfo(base) {
+  if (!base || !base.days) return null;
+  for (let i = 0; i < base.days.length; i++) {
+    const items = base.days[i].items || [];
+    const h = items.find(it => it.category === 'hotel');
+    if (h) return { item: h, dayIdx: i, itemIdx: items.indexOf(h) };
+  }
+  return null;
+}
+
+function renderCalendarPopup() {
+  const grid = document.getElementById('calOverlayGrid');
+  if (!grid) return;
+  const mapping = buildBaseCalendarMapping();
+  const lastIdx = mapping.length - 1;
+  let html = '';
+  mapping.forEach((m, idx) => {
+    const date = m.date;
+    const mNum = date.getMonth() + 1;
+    const dNum = date.getDate();
+    const wd = date.getDay();
+    const wdKo = WEEKDAY_KO[wd];
+    const isWeekend = (wd === 0 || wd === 6);
+    const dateKey = `${mNum}/${dNum}`;
+    const special = SPECIAL_DATES[dateKey];
+
+    const cityHtml = m.baseCity
+      ? `<div class="cal-cell-city" data-enter-city="${m.baseCity.id}">${m.baseCity.emoji || '📍'} ${m.baseCity.name}</div>`
+      : '<div class="cal-cell-city" style="color:var(--text-mute);">미지정</div>';
+
+    const baseId = m.baseCity ? m.baseCity.id : '';
+    const baseDayIdx = m.baseDayIdx;
+    const baseHotelInfo = m.baseCity ? findBaseHotelInfo(m.baseCity) : null;
+
+    // Day-trip(s) on this day: show outbound + return transit + name
+    let dayTripHtml = '';
+    if (m.dayTrips && m.dayTrips.length > 0) {
+      dayTripHtml = m.dayTrips.map(dt => {
+        const ob = dt.outboundTransit;
+        const rt = dt.returnTransit;
+        const obLabel = ob && ob.mode
+          ? `${transitEmoji(ob.mode)} ${formatDuration(ob.duration || 0)}`
+          : '🚆 미지정';
+        const rtLabel = rt && rt.mode
+          ? `${transitEmoji(rt.mode)} ${formatDuration(rt.duration || 0)}`
+          : '🚆 미지정';
+        const base = m.baseCity ? m.baseCity.name : '';
+        return `
+          <div class="cal-cell-daytrip" title="${base} → ${dt.name} → ${base}">
+            <div class="dt-name">🚄 당일치기: ${dt.name}</div>
+            <div class="dt-legs">
+              <span class="dt-leg">${base} → ${dt.name} · ${obLabel}</span>
+              <span class="dt-leg">${dt.name} → ${base} · ${rtLabel}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Departure-side inter-base transit
+    let transitHtml = '';
+    const next = mapping[idx + 1];
+    if (m.baseCity && m.isLastOfBase && next && next.baseCity && next.baseCity.id !== m.baseCity.id) {
+      const transit = m.baseCity.transitToNext;
+      if (transit && transit.mode) {
+        transitHtml = `
+          <div class="cal-cell-transit" title="${m.baseCity.name} → ${next.baseCity.name}">
+            <span class="ico">${transitEmoji(transit.mode)}</span>
+            <span class="lbl">→ ${next.baseCity.name}${transit.note ? ` · ${transit.note}` : ''}</span>
+            <span class="dur">${formatDuration(transit.duration || 0)}</span>
+          </div>`;
+      } else {
+        transitHtml = `
+          <div class="cal-cell-transit empty" title="${m.baseCity.name} → ${next.baseCity.name}">
+            <span class="ico">🚆</span>
+            <span class="lbl">→ ${next.baseCity.name} (이동수단 미지정)</span>
+          </div>`;
+      }
+    }
+
+    // Flight info on first/last day (synthetic — derived from airport item or defaults)
+    let flightHtml = '';
+    if (idx === 0) {
+      const arrItem = (m.day && m.day.items || []).find(it => it.category === 'airport');
+      const label = arrItem
+        ? `${arrItem.name}${arrItem.startTime ? ` · ${arrItem.startTime} 도착` : ''}`
+        : '로마 FCO 19:30 도착 (인천발)';
+      flightHtml = `
+        <div class="cal-cell-flight" title="${label}">
+          <span class="ico">✈️</span><span class="lbl">${label}</span>
+        </div>`;
+    }
+    if (idx === lastIdx) {
+      const depItem = (m.day && m.day.items || []).find(it => it.category === 'airport');
+      const label = depItem
+        ? `${depItem.name}${depItem.startTime ? ` · ${depItem.startTime} 출국` : ''}`
+        : '밀라노 MXP 20:05 출국';
+      flightHtml += `
+        <div class="cal-cell-flight" title="${label}">
+          <span class="ico">✈️</span><span class="lbl">${label}</span>
+        </div>`;
+    }
+
+    // ===== Build the timeline of items for this day =====
+    // Each visible entry is rendered as a .cal-item row. Items registered in the city detail
+    // are draggable to reorder. Hotel check-in / check-out are synthetic — same hotel item rendered
+    // on the first/last day of the base stay with appropriate labels.
+    const entries = [];
+
+    // Hotel check-in on first day of base stay
+    if (m.isFirstOfBase && baseHotelInfo) {
+      entries.push({
+        kind: 'hotel-checkin',
+        time: baseHotelInfo.item.startTime || '15:00',
+        emoji: '🏨',
+        labelTag: '체크인',
+        name: baseHotelInfo.item.name,
+        srcCityId: m.baseCity.id,
+        srcDayIdx: baseHotelInfo.dayIdx,
+        srcItemIdx: baseHotelInfo.itemIdx,
+        draggable: false,
+        cls: 'hotel'
+      });
+    }
+    // Hotel check-out on last day of base stay (skip if base is only 1 night and we already added check-in)
+    if (m.isLastOfBase && baseHotelInfo) {
+      entries.push({
+        kind: 'hotel-checkout',
+        time: '11:00',
+        emoji: '🏨',
+        labelTag: '체크아웃',
+        name: baseHotelInfo.item.name,
+        srcCityId: m.baseCity.id,
+        srcDayIdx: baseHotelInfo.dayIdx,
+        srcItemIdx: baseHotelInfo.itemIdx,
+        draggable: false,
+        cls: 'hotel'
+      });
+    }
+
+    // Real items from this day (drag-reorderable). We exclude hotel and airport — hotels are
+    // rendered as synthetic check-in/out, airports show as the flight row at the top.
+    const dayItems = (m.day && m.day.items) ? m.day.items : [];
+    dayItems.forEach((it, srcIdx) => {
+      if (it.category === 'hotel') return;
+      if (it.category === 'airport') return;
+      let labelTag = '';
+      let cls = it.category;
+      if (it.category === 'food') labelTag = classifyFoodMeal(it) || '식사';
+      else if (it.category === 'tour') labelTag = '관광지';
+      else if (it.category === 'transit') labelTag = '교통';
+      entries.push({
+        kind: it.category,
+        time: it.startTime || '',
+        emoji: categoryEmoji(it.category),
+        labelTag,
+        name: it.name,
+        srcCityId: m.baseCity ? m.baseCity.id : '',
+        srcDayIdx: m.baseDayIdx,
+        srcItemIdx: srcIdx,
+        draggable: true,
+        cls
+      });
+    });
+
+    // Sort entries by start time; items without a time go to the bottom in their original order
+    entries.sort((a, b) => {
+      const ta = a.time || '';
+      const tb = b.time || '';
+      if (!ta && !tb) return 0;
+      if (!ta) return 1;
+      if (!tb) return -1;
+      return ta.localeCompare(tb);
+    });
+
+    const itemsHtml = entries.map(e => `
+      <div class="cal-item ${e.cls}" ${e.draggable ? 'draggable="true"' : ''}
+           data-kind="${e.kind}"
+           data-src-city="${e.srcCityId || ''}"
+           data-src-day="${e.srcDayIdx != null ? e.srcDayIdx : ''}"
+           data-src-item="${e.srcItemIdx != null ? e.srcItemIdx : ''}"
+           title="${e.name}">
+        <span class="cal-item-time ${e.time ? '' : 'empty'}">${e.time || '--:--'}</span>
+        <span class="cal-item-emoji">${e.emoji}</span>
+        ${e.labelTag ? `<span class="cal-item-tag">${e.labelTag}</span>` : ''}
+        <span class="cal-item-name">${e.name}</span>
+      </div>
+    `).join('');
+
+    // Add-slot buttons (hotel/food only — tour is registered in detail per user request)
+    const hotelItem = baseHotelInfo && baseHotelInfo.item;
+    const addHotelBtn = hotelItem
+      ? '' // already shown as check-in/out
+      : `<div class="cal-add-slot" data-slot-cat="hotel" data-city="${baseId}" data-day-idx="${baseDayIdx}">
+          <span class="ico">🏨</span><span class="lbl">+ 호텔</span>
+        </div>`;
+
+    // Count food items to decide which add slot to show (lunch / dinner)
+    const lunchExists = (m.day && m.day.items || []).some(it => it.category === 'food' && classifyFoodMeal(it) === '점심');
+    const dinnerExists = (m.day && m.day.items || []).some(it => it.category === 'food' && classifyFoodMeal(it) === '저녁');
+    let addFoodHtml = '';
+    if (!lunchExists) {
+      addFoodHtml += `<div class="cal-add-slot" data-slot-cat="food" data-meal="lunch" data-city="${baseId}" data-day-idx="${baseDayIdx}">
+        <span class="ico">🍽️</span><span class="lbl">+ 점심</span>
+      </div>`;
+    }
+    if (!dinnerExists) {
+      addFoodHtml += `<div class="cal-add-slot" data-slot-cat="food" data-meal="dinner" data-city="${baseId}" data-day-idx="${baseDayIdx}">
+        <span class="ico">🍽️</span><span class="lbl">+ 저녁</span>
+      </div>`;
+    }
+
+    html += `
+      <div class="cal-cell ${isWeekend ? 'weekend' : ''} ${special ? 'special' : ''}"
+           data-base-city="${baseId}" data-base-day="${baseDayIdx}">
+        <div class="cal-cell-head">
+          <span class="cal-cell-date">${dNum}</span>
+          <span class="cal-cell-wd">${wdKo}</span>
+          <span class="cal-cell-day-num">Day ${idx + 1}</span>
+        </div>
+        ${cityHtml}
+        ${dayTripHtml}
+        ${flightHtml}
+        ${special ? `<div class="cal-cell-special">${special}</div>` : ''}
+        <div class="cal-cell-items">
+          ${itemsHtml}
+        </div>
+        <div class="cal-cell-addslots">
+          ${addHotelBtn}
+          ${addFoodHtml}
+        </div>
+        ${transitHtml}
+      </div>
+    `;
+  });
+  grid.innerHTML = html;
+
+  // City label click → enter that city's detail
+  grid.querySelectorAll('.cal-cell-city[data-enter-city]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cid = el.dataset.enterCity;
+      if (cid) { closeCalendarPopup(); enterCityView(cid); }
+    });
+  });
+
+  // Add-slot click → open places modal targeting that city/day
+  grid.querySelectorAll('.cal-add-slot').forEach(slot => {
+    slot.addEventListener('click', (e) => {
+      const cid = slot.dataset.city;
+      const dIdx = parseInt(slot.dataset.dayIdx, 10);
+      const cat = slot.dataset.slotCat;
+      const meal = slot.dataset.meal || null;
+      if (!cid || isNaN(dIdx)) {
+        alert('이 날짜에 도시가 지정되어 있지 않습니다. 도시 일정을 먼저 정해주세요.');
+        return;
+      }
+      openCalendarSlotPicker(cid, dIdx, cat, { mealHint: meal });
+    });
+  });
+
+  // Clicking an existing calendar item opens the source detail context
+  grid.querySelectorAll('.cal-item').forEach(el => {
+    el.addEventListener('dblclick', () => {
+      const cid = el.dataset.srcCity;
+      const dIdx = parseInt(el.dataset.srcDay, 10);
+      const iIdx = parseInt(el.dataset.srcItem, 10);
+      if (!cid || isNaN(dIdx) || isNaN(iIdx)) return;
+      closeCalendarPopup();
+      enterCityView(cid);
+      setTimeout(() => showPlaceInRightPanel(dIdx, iIdx), 100);
+    });
+  });
+
+  // Drag-reorder among draggable items WITHIN the same day cell
+  bindCalendarItemDrag(grid);
+}
+
+// HTML5 drag-and-drop for .cal-item — same-day reorder only
+function bindCalendarItemDrag(grid) {
+  let draggedEl = null;
+  grid.querySelectorAll('.cal-item[draggable="true"]').forEach(el => {
+    el.addEventListener('dragstart', (e) => {
+      draggedEl = el;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('type', 'cal-item'); } catch (_) {}
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      grid.querySelectorAll('.cal-item.drag-over-top, .cal-item.drag-over-bottom')
+        .forEach(x => x.classList.remove('drag-over-top', 'drag-over-bottom'));
+      draggedEl = null;
+    });
+    el.addEventListener('dragover', (e) => {
+      if (!draggedEl || draggedEl === el) return;
+      if (draggedEl.closest('.cal-cell') !== el.closest('.cal-cell')) return; // same cell only
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      grid.querySelectorAll('.cal-item.drag-over-top, .cal-item.drag-over-bottom')
+        .forEach(x => x.classList.remove('drag-over-top', 'drag-over-bottom'));
+      if (e.clientY < mid) el.classList.add('drag-over-top');
+      else el.classList.add('drag-over-bottom');
+    });
+    el.addEventListener('drop', (e) => {
+      if (!draggedEl || draggedEl === el) return;
+      if (draggedEl.closest('.cal-cell') !== el.closest('.cal-cell')) return;
+      e.preventDefault();
+      const fromItemIdx = parseInt(draggedEl.dataset.srcItem, 10);
+      const toItemIdx = parseInt(el.dataset.srcItem, 10);
+      const cityId = draggedEl.dataset.srcCity;
+      const dayIdx = parseInt(draggedEl.dataset.srcDay, 10);
+      const rect = el.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      const before = e.clientY < mid;
+      moveCalendarItemWithinDay(cityId, dayIdx, fromItemIdx, toItemIdx, before);
+    });
+  });
+}
+
+function moveCalendarItemWithinDay(cityId, dayIdx, fromIdx, toIdx, before) {
+  const city = cities.find(c => c.id === cityId);
+  if (!city || !city.days[dayIdx]) return;
+  const items = city.days[dayIdx].items;
+  if (fromIdx < 0 || fromIdx >= items.length || toIdx < 0 || toIdx >= items.length) return;
+  const [moved] = items.splice(fromIdx, 1);
+  let insertIdx = toIdx;
+  if (fromIdx < toIdx) insertIdx = toIdx - 1;
+  if (!before) insertIdx += 1;
+  items.splice(insertIdx, 0, moved);
+  // Recompute transits — order changed so neighbor pairs are invalidated
+  if (typeof clearAndInitTransitsForDay === 'function') {
+    clearAndInitTransitsForDay(city.days[dayIdx]);
+  }
+  persist();
+  renderCalendarPopup();
+  if (currentView === 'city' && currentCityId === cityId) {
+    renderCityLeft();
+    renderCityPlacesOnMap();
+  }
+  if (typeof refreshDayTransits === 'function') refreshDayTransits(city.days[dayIdx]);
+}
+
+function clearCalendarSlot(cityId, dayIdx, category) {
+  const city = cities.find(c => c.id === cityId);
+  if (!city || !city.days[dayIdx]) return;
+  const items = city.days[dayIdx].items;
+  const idx = items.findIndex(it => it.category === category);
+  if (idx === -1) return;
+  const removed = items[idx];
+  if (!confirm(`"${removed.name}"을(를) Day ${dayIdx + 1}에서 삭제할까요?`)) return;
+  items.splice(idx, 1);
+  if (removed.cityPairKey) syncTransitItemToCityPair(removed, city, { removed: true });
+  clearAndInitTransitsForDay(city.days[dayIdx]);
+  persist();
+  renderCalendarPopup();
+  // If we're currently viewing this city in detail, refresh too
+  if (currentView === 'city' && currentCityId === cityId) {
+    renderCityLeft();
+    renderCityPlacesOnMap();
+  }
+}
+
+// Open the places modal targeting a specific city/day from the calendar popup.
+// We temporarily set currentCityId so the existing add flow lands the item in the right city,
+// then restore after the modal is closed.
+let calendarPickRestore = null;
+function openCalendarSlotPicker(cityId, dayIdx, category, opts) {
+  const city = cities.find(c => c.id === cityId);
+  if (!city || !city.days[dayIdx]) return;
+  opts = opts || {};
+
+  calendarPickRestore = {
+    cityId: currentCityId,
+    view: currentView,
+    targetCityId: cityId,
+    targetDayIdx: dayIdx,
+    targetCategory: category,
+    mealHint: opts.mealHint || null
+  };
+  // Switch context for the duration of the modal flow
+  currentCityId = cityId;
+
+  // For food slots, we're ALWAYS adding (lunch or dinner) — don't replace.
+  // For hotel slots, replace the existing hotel item if one exists.
+  let replaceItemIdx;
+  if (category === 'hotel') {
+    const existing = findItemInDayByCategory(city.days[dayIdx], 'hotel');
+    replaceItemIdx = existing ? city.days[dayIdx].items.indexOf(existing) : undefined;
+  } else {
+    replaceItemIdx = undefined;
+  }
+  openPlacesModal(category, dayIdx, replaceItemIdx);
+}
+
+// After the place modal closes (via the global [data-close] handler or item pick),
+// re-render the calendar popup if it's open and restore previous context.
+function maybeRestoreFromCalendarPick() {
+  if (!calendarPickRestore) return;
+  const restore = calendarPickRestore;
+  calendarPickRestore = null;
+  currentCityId = restore.cityId;
+  // If we were in a city view originally, re-render that city's left panel + markers
+  if (restore.view === 'city' && currentCityId) {
+    renderCityLeft();
+    renderCityPlacesOnMap();
+  }
+  if (calendarPopupOpen) renderCalendarPopup();
 }
 
 function renderCalendar() {
@@ -4514,9 +7138,22 @@ function showPlaceInRightPanel(dayIdx, itemIdx) {
   const day = city.days[dayIdx];
   const item = day.items[itemIdx];
 
+  // Transit items get their own detailed view
+  if (item.category === 'transit') {
+    showTransitItemDetail(city, day, item, dayIdx, itemIdx);
+    return;
+  }
+
+  // Show category-change button only for the three editable categories
+  const changeable = ['tour', 'hotel', 'food'].includes(item.category);
+  const changeBtnHtml = changeable
+    ? `<button class="place-change-btn" id="placeChangeBtn" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}">${categoryLabel(item.category)} 변경</button>`
+    : '';
+
   document.getElementById('dayDetail').innerHTML = `
     <div class="day-cover ${item.category === 'tour' ? '' : (item.category === 'hotel' ? 'alpine' : 'day-trip')}">
       <div class="day-emoji">${categoryEmoji(item.category)}</div>
+      ${changeBtnHtml}
     </div>
     <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 28px 0 4px;">
       ${day.title} · ${day.date}
@@ -4530,6 +7167,7 @@ function showPlaceInRightPanel(dayIdx, itemIdx) {
     </div>
     <div id="placeMoreInfo"></div>
     ${item.description ? `<div class="callout tip">💡 ${item.description}</div>` : ''}
+    ${item.category === 'hotel' ? renderHotelPricePanel(item) : ''}
 
     <div class="nblock-h2">🤖 AI 리뷰 요약</div>
     <div id="aiReviewSummaryRight">
@@ -4558,6 +7196,179 @@ function showPlaceInRightPanel(dayIdx, itemIdx) {
     if (el) el.innerHTML = `<div class="ai-content">${renderMarkdown(summary)}</div>`;
   });
   loadPlaceFaq(item);
+
+  const changeBtn = document.getElementById('placeChangeBtn');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openReplaceMenu(dayIdx, itemIdx);
+    });
+  }
+}
+
+// Hotel price-comparison panel.
+// NOTE: Google Maps' hotel-price comparison UI is NOT exposed by the public Places API.
+// We surface what IS available (price_level when set in loadPlaceDetails) and provide
+// direct links to Google Maps / Google Hotels / Booking.com for live price look-ups.
+function renderHotelPricePanel(item) {
+  const q = encodeURIComponent(item.name + (item.address ? ' ' + item.address : ''));
+  const gmapHref = item.id && item.id.length > 5 && !item.id.startsWith('demo_')
+    ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(item.id)}`
+    : `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const gHotelsHref = `https://www.google.com/travel/hotels/${q}`;
+  const bookingHref = `https://www.booking.com/searchresults.ko.html?ss=${q}`;
+  // Use a stable id we can target after async fetch
+  const panelId = 'hotelPriceEst_' + (item.id || Math.random().toString(36).slice(2));
+  // Kick off async GPT fetch after the HTML is rendered
+  setTimeout(() => loadHotelPriceEstimate(item, panelId), 0);
+  return `
+    <div class="nblock-h2">💰 가격 정보</div>
+    <div class="hotel-price-panel" id="hotelPricePanel">
+      <div id="${panelId}" style="font-size:12px; color:var(--text-soft); line-height:1.55; margin-bottom:10px;">
+        <div class="skeleton" style="margin: 4px 0;"></div>
+        <div class="skeleton" style="margin: 4px 0; width: 80%;"></div>
+        <div style="font-size:11px; color:var(--text-mute); margin-top:6px;">GPT가 12월 말~1월 초 시즌 대략 가격을 검색 중...</div>
+      </div>
+      <div style="font-size:11px; color:var(--text-mute); margin-bottom:6px;">
+        실시간 가격은 아래 외부 사이트에서 확인하세요.
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <a class="btn" href="${gmapHref}" target="_blank" rel="noopener" style="text-decoration:none; justify-content:flex-start; gap:8px;">
+          <span>🗺️</span><span>Google 지도에서 가격 보기</span>
+        </a>
+        <a class="btn" href="${gHotelsHref}" target="_blank" rel="noopener" style="text-decoration:none; justify-content:flex-start; gap:8px;">
+          <span>🏨</span><span>Google Hotels 가격 비교</span>
+        </a>
+        <a class="btn" href="${bookingHref}" target="_blank" rel="noopener" style="text-decoration:none; justify-content:flex-start; gap:8px;">
+          <span>📘</span><span>Booking.com 검색</span>
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+async function loadHotelPriceEstimate(item, panelId) {
+  const target = document.getElementById(panelId);
+  if (!target) return;
+  if (!openaiKey) {
+    target.innerHTML = `
+      <div style="color:var(--text-mute); font-size:12px;">
+        ⚠️ OpenAI API 키를 등록하면 GPT가 검색한 대략 가격이 표시됩니다.
+        ${item.priceLevel != null ? `<div style="margin-top:4px;">현재 알려진 가격대: <strong>${'₩'.repeat((item.priceLevel || 0) + 1)}</strong></div>` : ''}
+      </div>
+    `;
+    return;
+  }
+  const cacheKey = `italy.hotelPrice.${item.id || item.name}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  let result;
+  if (cached) {
+    try { result = JSON.parse(cached); } catch (_) { result = null; }
+  }
+  if (!result) {
+    try {
+      result = await fetchHotelPriceEstimate(item);
+      sessionStorage.setItem(cacheKey, JSON.stringify(result));
+    } catch (err) {
+      target.innerHTML = `<div style="color:var(--red); font-size:12px;">가격 추정 실패: ${err.message}</div>`;
+      return;
+    }
+  }
+  const target2 = document.getElementById(panelId);
+  if (!target2) return;
+  target2.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      ${result.tier ? `<div><strong style="color:var(--text);">가격대</strong>: ${result.tier}</div>` : ''}
+      ${result.estimate ? `<div><strong style="color:var(--text);">대략 1박</strong>: ${result.estimate}</div>` : ''}
+      ${result.range ? `<div><strong style="color:var(--text);">시즌 범위</strong>: ${result.range}</div>` : ''}
+      ${result.notes ? `<div style="margin-top:4px; font-size:11.5px; color:var(--text-mute);">${result.notes}</div>` : ''}
+      <div style="font-size:10.5px; color:var(--text-mute); margin-top:4px; font-style:italic;">
+        ※ GPT 추정치 — 실제 가격은 위 사이트에서 확인하세요.
+      </div>
+    </div>
+  `;
+}
+
+async function fetchHotelPriceEstimate(item) {
+  const prompt = `이탈리아의 호텔 "${item.name}"${item.address ? ` (${item.address})` : ''}${item.rating ? `, 평점 ${item.rating}` : ''}${item.priceLevel != null ? `, Google 가격대 ${'$'.repeat((item.priceLevel || 0) + 1)}` : ''}의 2025년 12월 말 ~ 2026년 1월 초 (성수기·연말 시즌) 가족 여행자(성인 2명 + 어린이 2명) 기준 1박 가격을 추정해줘.
+
+아는 정보가 부족하면 같은 도시/등급/체인의 일반적인 가격대를 기반으로 합리적인 추정치를 제공하면 됩니다.
+
+다음 JSON 형식으로만 응답 (다른 텍스트 없이):
+{
+  "tier": "₩~₩₩₩₩ 표기 + 한국어 등급 (예: '₩₩₩ · 미드레인지')",
+  "estimate": "1박 대략 원화 (예: '약 18~25만원')",
+  "range": "시즌 변동 범위 (예: '평일 15만원, 연말 카운트다운 28만원까지')",
+  "notes": "한국어 1-2문장 — 가성비/위치/주의사항 등"
+}`;
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  const data = await resp.json();
+  return JSON.parse(data.choices[0].message.content);
+}
+
+function showTransitItemDetail(city, day, item, dayIdx, itemIdx) {
+  const distKm = (item.fromLat && item.fromLng && item.toLat && item.toLng)
+    ? haversine({ lat: item.fromLat, lng: item.fromLng }, { lat: item.toLat, lng: item.toLng }).toFixed(0)
+    : null;
+  document.getElementById('dayDetail').innerHTML = `
+    <div class="day-cover" style="background: linear-gradient(135deg, var(--accent) 0%, #4a9eea 100%);">
+      <div class="day-emoji">${transitEmoji(item.transitMode || 'train')}</div>
+    </div>
+    <button class="tx-back-btn" id="txBackBtn" type="button">← 일정으로 돌아가기</button>
+    <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 14px 0 4px;">
+      ${day.title} · ${day.date}
+    </div>
+    <h1>${item.fromName || ''} → ${item.toName || ''}</h1>
+    <div class="day-subtitle">${transitLabel(item.transitMode || 'train')}${item.transitNote ? ` · ${item.transitNote}` : ''}</div>
+
+    <div class="tx-grid cols-3" style="margin-top:14px;">
+      <div class="tx-stat accent">
+        <div class="lbl">소요시간</div>
+        <div class="val">${formatDuration(item.duration || 0)}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">이동수단</div>
+        <div class="val small">${transitEmoji(item.transitMode || 'train')} ${transitLabel(item.transitMode || 'train')}</div>
+      </div>
+      <div class="tx-stat">
+        <div class="lbl">${distKm ? '거리' : '출발 시각'}</div>
+        <div class="val small">${distKm ? `약 ${distKm} km` : (item.startTime || '—')}</div>
+      </div>
+    </div>
+
+    <div id="txGuideContent">
+      <div class="skeleton" style="margin: 8px 0;"></div>
+      <div class="skeleton" style="margin: 8px 0; width: 85%;"></div>
+      <div class="skeleton" style="margin: 8px 0; width: 70%;"></div>
+      <div style="font-size:11.5px;color:var(--text-mute); text-align:center; margin-top:10px;">
+        GPT가 핵심 정보를 정리 중...
+      </div>
+    </div>
+  `;
+  document.getElementById('chatArea').style.display = 'none';
+
+  const backBtn = document.getElementById('txBackBtn');
+  if (backBtn) backBtn.addEventListener('click', closeTransitDetailPanel);
+
+  const fakeFrom = { id: 'tr_' + (item.id || ''), name: item.fromName || '출발지', ko: '', lat: item.fromLat, lng: item.fromLng };
+  const fakeTo = { id: 'tr_dest_' + (item.id || ''), name: item.toName || '목적지', ko: '', lat: item.toLat, lng: item.toLng };
+  const transit = { mode: item.transitMode || 'train', duration: item.duration || 60 };
+  fetchCityTransitGuide(fakeFrom, fakeTo, transit).then(guide => {
+    renderTransitGuideCards(document.getElementById('txGuideContent'), guide);
+  }).catch(err => {
+    const el = document.getElementById('txGuideContent');
+    if (el) el.innerHTML = `<div style="color:var(--red);font-size:12px;">가이드 생성 실패: ${err.message}</div>`;
+  });
 }
 
 async function loadPlaceFaq(place) {
@@ -4899,7 +7710,7 @@ function exitToOverview() {
   setStatus('도시 마커를 <strong>더블클릭</strong>하면 해당 도시의 상세 지도로 진입합니다.');
 }
 
-function addCityAtLatLng(lat, lng, nameOverride, typeOverride) {
+function addCityAtLatLng(lat, lng, nameOverride, typeOverride, insertAfterCityId) {
   const name = nameOverride || prompt('도시명을 입력하세요 (예: Verona / 베로나)');
   if (!name) return;
   const parts = name.split('/').map(s => s.trim());
@@ -4908,9 +7719,39 @@ function addCityAtLatLng(lat, lng, nameOverride, typeOverride) {
   const type = typeOverride || 'base';
   const emojiMap = { base: '📍', day: '🚄', alpine: '🏔️' };
   const newId = 'city_' + Date.now();
-  const maxOrder = cities.reduce((m, c) => Math.max(m, c.order), 0);
-  cities.push({
-    id: newId, order: maxOrder + 1, type: type, emoji: emojiMap[type] || '📍',
+
+  // Compute newOrder. When inserting after a specific city (day-trip flow), put it right
+  // after that city plus any existing day-trips already nested under it, then bump every
+  // subsequent city's order by 1 so the sequence stays contiguous.
+  let newOrder;
+  let parentBaseId = null;
+  if (insertAfterCityId) {
+    const parent = cities.find(c => c.id === insertAfterCityId);
+    if (parent) {
+      parentBaseId = parent.id;
+      const sorted = [...cities].sort((a, b) => a.order - b.order);
+      const parentIdx = sorted.findIndex(c => c.id === insertAfterCityId);
+      // Skip past existing day-trips already nested under this base
+      let insertOrder = parent.order + 1;
+      for (let i = parentIdx + 1; i < sorted.length; i++) {
+        if (sorted[i].type === 'day') {
+          insertOrder = sorted[i].order + 1;
+        } else {
+          break;
+        }
+      }
+      // Bump everything at or after the insertion point
+      cities.forEach(c => { if (c.order >= insertOrder) c.order += 1; });
+      newOrder = insertOrder;
+    } else {
+      newOrder = (cities.reduce((m, c) => Math.max(m, c.order), 0)) + 1;
+    }
+  } else {
+    newOrder = (cities.reduce((m, c) => Math.max(m, c.order), 0)) + 1;
+  }
+
+  const newCity = {
+    id: newId, order: newOrder, type: type, emoji: emojiMap[type] || '📍',
     name: en, ko: ko, lat, lng,
     nights: type === 'day' ? '당일치기' : '1박', day: '',
     title: en, subtitle: '새로 추가된 도시',
@@ -4918,12 +7759,16 @@ function addCityAtLatLng(lat, lng, nameOverride, typeOverride) {
       { dayNum: 1, date: '', title: 'Day 1', items: [] }
     ],
     tip: '', warn: ''
-  });
+  };
+  if (parentBaseId && type === 'day') newCity.parentBaseId = parentBaseId;
+  cities.push(newCity);
   selectedId = newId;
   persist();
   renderAll();
   setStatus(`<strong>${en}</strong> 추가됨. 마커를 드래그해 위치 조정 가능.`);
   if (mode === 'add') toggleMode(null);
+  // Auto-register train transit for any newly created neighbor pair
+  autoFillMissingTransits();
 }
 
 function deleteCity(id) {
@@ -4939,8 +7784,10 @@ function deleteCity(id) {
 function toggleMode(newMode) {
   if (mode === newMode) newMode = null;
   mode = newMode;
-  document.getElementById('toolAdd').classList.toggle('active', mode === 'add');
-  document.getElementById('toolDelete').classList.toggle('active', mode === 'delete');
+  const addBtn = document.getElementById('toolAdd');
+  const delBtn = document.getElementById('toolDelete');
+  if (addBtn) addBtn.classList.toggle('active', mode === 'add');
+  if (delBtn) delBtn.classList.toggle('active', mode === 'delete');
   if (mode === 'add') setStatus('📍 <strong>지도 클릭</strong>해서 도시 추가');
   else if (mode === 'delete') setStatus('🗑 <strong>삭제할 마커 클릭</strong>');
   else setStatus('도시 마커를 <strong>더블클릭</strong>하면 해당 도시의 상세 지도로 진입합니다.');
@@ -4966,8 +7813,10 @@ function fitToBounds() {
 }
 
 // ===== EVENTS =====
-document.getElementById('toolAdd').addEventListener('click', () => toggleMode('add'));
-document.getElementById('toolDelete').addEventListener('click', () => toggleMode('delete'));
+const _toolAddBtn = document.getElementById('toolAdd');
+if (_toolAddBtn) _toolAddBtn.addEventListener('click', () => toggleMode('add'));
+const _toolDelBtn = document.getElementById('toolDelete');
+if (_toolDelBtn) _toolDelBtn.addEventListener('click', () => toggleMode('delete'));
 
 document.querySelectorAll('.category-btn[data-cat]').forEach(btn => {
   btn.addEventListener('click', () => toggleCategoryFilter(btn.dataset.cat));
@@ -4981,9 +7830,21 @@ document.getElementById('toggleMapPoi').addEventListener('click', () => {
 });
 
 document.getElementById('fitBtn').addEventListener('click', () => {
-  if (currentView === 'city') exitToOverview();
-  else fitToBounds();
+  // Stay on whichever view we're on — just open the popup
+  openCalendarPopup();
 });
+document.getElementById('calOverlayCloseBtn').addEventListener('click', closeCalendarPopup);
+// Click anywhere OUTSIDE the popup inner box closes it (sidebar/header clicks too)
+document.addEventListener('click', (e) => {
+  if (!calendarPopupOpen) return;
+  // Ignore the very click that opened the popup
+  if (e.target.closest('#fitBtn')) return;
+  // Ignore clicks inside the popup itself
+  if (e.target.closest('#calOverlayInner')) return;
+  // Ignore clicks inside any modal that the popup might have opened (e.g., placesModal)
+  if (e.target.closest('.modal-backdrop.open')) return;
+  closeCalendarPopup();
+}, true);
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   if (confirm('초기 일정으로 되돌릴까요?')) {
@@ -5037,14 +7898,20 @@ document.querySelectorAll('[data-close]').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.close;
     document.getElementById(id).classList.remove('open');
-    if (id === 'placesModal') pendingReplaceItemIdx = null;
+    if (id === 'placesModal') {
+      pendingReplaceItemIdx = null;
+      maybeRestoreFromCalendarPick();
+    }
   });
 });
 document.querySelectorAll('.modal-backdrop').forEach(bd => {
   bd.addEventListener('click', (e) => {
     if (e.target === bd) {
       bd.classList.remove('open');
-      if (bd.id === 'placesModal') pendingReplaceItemIdx = null;
+      if (bd.id === 'placesModal') {
+        pendingReplaceItemIdx = null;
+        maybeRestoreFromCalendarPick();
+      }
     }
   });
 });
@@ -5062,6 +7929,8 @@ document.getElementById('pdBack').addEventListener('click', () => {
   document.getElementById('placeDetailView').classList.remove('open');
   document.getElementById('placesListView').style.display = '';
 });
+const favCmpBtn = document.getElementById('favCompareBtn');
+if (favCmpBtn) favCmpBtn.addEventListener('click', openFavCompareModal);
 
 document.getElementById('keyBtn').addEventListener('click', () => {
   document.getElementById('openaiKeyInput').value = openaiKey;
