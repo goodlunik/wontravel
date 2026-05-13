@@ -504,6 +504,14 @@
   }
   .item-card:hover .item-drag-handle { opacity: 0.6; }
   .item-emoji { font-size: 14px; line-height: 1.3; }
+  .item-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    color: #fff; font-size: 11.5px; font-weight: 700;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
   .item-info { min-width: 0; }
   .item-name {
     font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.3;
@@ -2180,7 +2188,7 @@
     <!-- Category filters (visible only in city view) -->
     <div class="map-categories" id="mapCategories" style="display:none;">
       <button class="category-btn" data-cat="tour"><span class="ico">🎫</span> 관광지</button>
-      <button class="category-btn" data-cat="hotel"><span class="ico">🏨</span> 호텔</button>
+      <button class="category-btn" data-cat="hotel"><span class="ico">🏨</span> 숙소</button>
       <button class="category-btn" data-cat="food"><span class="ico">🍽️</span> 식당</button>
       <div style="width:1px; background:var(--border); margin: 4px 2px;"></div>
       <button class="category-btn" id="toggleMapPoi" title="지도 기본 장소 표시/숨김"><span class="ico">🗺️</span> 지도 POI</button>
@@ -2197,7 +2205,7 @@
       <div class="cal-overlay-inner" id="calOverlayInner">
         <div class="cal-overlay-header">
           <div class="cal-overlay-title">📅 전체 일정 캘린더</div>
-          <div class="cal-overlay-sub" id="calOverlaySub">일자별로 호텔/식당을 미리 등록해 두면 세부 일정에 자동 반영됩니다.</div>
+          <div class="cal-overlay-sub" id="calOverlaySub">일자별로 숙소/식당을 미리 등록해 두면 세부 일정에 자동 반영됩니다.</div>
           <button class="cal-overlay-close" id="calOverlayCloseBtn" title="닫기">×</button>
         </div>
         <div class="cal-overlay-grid" id="calOverlayGrid"></div>
@@ -2271,7 +2279,7 @@
       <div class="key-input-group">
         <label>Google Maps + Places API Key</label>
         <input type="password" id="googleKeyInput" placeholder="AIza..." autocomplete="off" />
-        <div class="hint">한글 지도 + 실제 관광지/호텔/식당 데이터. Google Cloud에서 <strong>Maps JavaScript API</strong>와 <strong>Places API (New)</strong> 둘 다 활성화. <a href="https://console.cloud.google.com/" target="_blank">콘솔</a></div>
+        <div class="hint">한글 지도 + 실제 관광지/숙소/식당 데이터. Google Cloud에서 <strong>Maps JavaScript API</strong>와 <strong>Places API (New)</strong> 둘 다 활성화. <a href="https://console.cloud.google.com/" target="_blank">콘솔</a></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2665,7 +2673,7 @@ function categoryEmoji(cat) {
 }
 function categoryLabel(cat) {
   if (cat === 'tour') return '관광지';
-  if (cat === 'hotel') return '호텔';
+  if (cat === 'hotel') return '숙소';
   if (cat === 'food') return '식당';
   if (cat === 'airport') return '공항';
   if (cat === 'transit') return '교통';
@@ -4484,14 +4492,16 @@ function renderItemCard(item, dayIdx, itemIdx, isLast) {
       endTimeHtml = `<span class="item-end-time">종료 <strong>${end}</strong></span>`;
     }
   }
+  const seqNum = itemIdx + 1;
+  const numColor = categoryColor(item.category);
   return `
     <div class="item-card" data-day-idx="${dayIdx}" data-item-idx="${itemIdx}" draggable="true">
       <span class="item-drag-handle">⋮⋮</span>
-      <span class="item-emoji">${categoryEmoji(item.category)}</span>
+      <span class="item-num" style="background:${numColor};" title="${categoryLabel(item.category)}">${seqNum}</span>
       <div class="item-info">
         <div class="item-name">${item.name}</div>
         <div class="item-meta">
-          <span class="badge-sm ${item.category}">${categoryLabel(item.category)}</span>
+          <span class="badge-sm ${item.category}">${categoryEmoji(item.category)} ${categoryLabel(item.category)}</span>
           ${item.rating ? `<span><span class="star">★</span> ${item.rating}</span>` : ''}
         </div>
       </div>
@@ -5193,7 +5203,7 @@ function openAddMenu(targetBtn, dayIdx) {
   addMenuEl.style.left = rect.left + 'px';
   let menuHtml = `
     <div class="add-menu-item" data-cat="tour"><span class="ico">🎫</span> 관광지</div>
-    <div class="add-menu-item" data-cat="hotel"><span class="ico">🏨</span> 호텔</div>
+    <div class="add-menu-item" data-cat="hotel"><span class="ico">🏨</span> 숙소</div>
     <div class="add-menu-item" data-cat="food"><span class="ico">🍽️</span> 식당</div>
     <div class="add-menu-item" data-cat="transit"><span class="ico">🚆</span> 교통</div>
   `;
@@ -5571,27 +5581,31 @@ async function fetchPlaces(category) {
 
   // Use Google Places API via JS SDK
   if (googleKey && placesService) {
-    return new Promise((resolve, reject) => {
-      const queryMap = {
-        tour: `top tourist attractions in ${city.name}, Italy`,
-        hotel: `best hotels in ${city.name}, Italy`,
-        food: `top restaurants in ${city.name}, Italy`
-      };
+    // For lodging, run multiple queries in parallel and merge results so
+    // we surface hotels, 한인민박 (Korean guesthouses), and apartment-style stays.
+    const queries = category === 'hotel'
+      ? [
+          { q: `best hotels in ${city.name}, Italy`, tag: '' },
+          { q: `한인민박 ${city.name} Italy Korean guesthouse`, tag: '한인민박' },
+          { q: `apartment vacation rental ${city.name} Italy`, tag: '아파트/렌탈' }
+        ]
+      : category === 'tour'
+        ? [{ q: `top tourist attractions in ${city.name}, Italy`, tag: '' }]
+        : [{ q: `top restaurants in ${city.name}, Italy`, tag: '' }];
 
+    const runOne = ({ q, tag }) => new Promise(resolve => {
       const request = {
-        query: queryMap[category],
+        query: q,
         location: new google.maps.LatLng(city.lat, city.lng),
         radius: 10000,
         language: 'ko'
       };
-
       placesService.textSearch(request, (results, status) => {
-        if (status !== google.maps.places.PlacesServiceStatus.OK) {
-          console.warn('Places search failed:', status);
-          resolve(getDemoPlaces(category, city));
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
+          resolve([]);
           return;
         }
-        const places = results.slice(0, 15).map(p => ({
+        resolve(results.slice(0, 10).map(p => ({
           id: p.place_id,
           name: p.name,
           category,
@@ -5600,13 +5614,26 @@ async function fetchPlaces(category) {
           address: p.formatted_address || '',
           lat: p.geometry.location.lat(),
           lng: p.geometry.location.lng(),
-          description: p.types ? p.types.slice(0,2).join(', ') : '',
+          description: tag || (p.types ? p.types.slice(0,2).join(', ') : ''),
           priceLevel: p.price_level,
-          types: p.types
-        }));
-        resolve(places);
+          types: p.types,
+          _lodgingTag: tag || null
+        })));
       });
     });
+
+    const arrays = await Promise.all(queries.map(runOne));
+    // De-duplicate by place_id, prioritize the first occurrence (so hotels come first)
+    const seen = new Set();
+    const merged = [];
+    arrays.flat().forEach(p => {
+      if (seen.has(p.id)) return;
+      seen.add(p.id);
+      merged.push(p);
+    });
+    if (merged.length === 0) return getDemoPlaces(category, city);
+    // Cap to 30 for the lodging case (10 each) to keep the list manageable
+    return merged.slice(0, category === 'hotel' ? 30 : 15);
   } else {
     return getDemoPlaces(category, city);
   }
@@ -5681,7 +5708,21 @@ function renderPlacesList() {
   }
   const isReplaceMode = pendingReplaceItemIdx !== null;
 
-  list.innerHTML = sorted.map((p, idx) => {
+  // Lodging-specific external search banner (Airbnb is not in Google Places)
+  let extHtml = '';
+  if (currentPlaceCategory === 'hotel' && city) {
+    const q = encodeURIComponent(`${city.name}, Italy`);
+    extHtml = `
+      <div style="display:flex; gap:6px; flex-wrap:wrap; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;">
+        <span style="font-size:11.5px; color:var(--text-mute); align-self:center;">🌐 외부 사이트에서 더 보기:</span>
+        <a href="https://www.airbnb.com/s/${q}/homes" target="_blank" rel="noopener" style="font-size:12px; padding:4px 10px; background:#FF5A5F; color:white; border-radius:4px; text-decoration:none; font-weight:500;">Airbnb ${city.name}</a>
+        <a href="https://www.booking.com/searchresults.html?ss=${q}" target="_blank" rel="noopener" style="font-size:12px; padding:4px 10px; background:#003580; color:white; border-radius:4px; text-decoration:none; font-weight:500;">Booking.com</a>
+        <a href="https://www.google.com/search?q=${encodeURIComponent('한인민박 ' + city.name)}" target="_blank" rel="noopener" style="font-size:12px; padding:4px 10px; background:#4285F4; color:white; border-radius:4px; text-decoration:none; font-weight:500;">한인민박 검색</a>
+      </div>
+    `;
+  }
+
+  list.innerHTML = extHtml + sorted.map((p, idx) => {
     const added = existingNames.has(p.name);
     let btnLabel;
     let btnClass = 'place-add-btn';
@@ -6554,7 +6595,7 @@ function renderCalendarPopup() {
     const addHotelBtn = hotelItem
       ? '' // already shown as check-in/out
       : `<div class="cal-add-slot" data-slot-cat="hotel" data-city="${baseId}" data-day-idx="${baseDayIdx}">
-          <span class="ico">🏨</span><span class="lbl">+ 호텔</span>
+          <span class="ico">🏨</span><span class="lbl">+ 숙소</span>
         </div>`;
 
     // Count food items to decide which add slot to show (lunch / dinner)
@@ -7637,7 +7678,10 @@ async function generateSingleCityPlan(city) {
 ${dayList || '- (날짜 정보 없음)'}
 
 == 작성 규칙 ==
-1. 각 Day에 ${isDayTrip ? '3-5' : '3-6'}개 일정 (관광지/식당/호텔)
+1. 각 Day에 ${isDayTrip ? '3-5' : '3-6'}개 일정 (관광지/식당/숙소)
+1-1. **숙소 시작/끝 규칙**: ${isDayTrip
+    ? '당일치기는 숙소를 포함하지 않음 (베이스 도시에서 출발/귀환).'
+    : '각 Day의 첫 일정과 마지막 일정은 반드시 숙소(category="hotel"). 첫 숙소는 06:30~07:30 출발/조식 (duration=30), 마지막 숙소는 21:30~22:30 복귀/취침 (duration=30). 같은 도시에 머무는 동안 같은 숙소를 반복해서 사용.'}
 2. 12/24·12/25·12/31·1/1 특수성, 12/25·1/1 박물관 휴무 고려
 3. 12월 말 겨울, 16:30 일몰, 어린이 동선 고려
 4. 시간 배치: 식사 7:30-9:00·12:30-13:30·19:00-20:30 / 관광 9:30-17:00 / 호텔 체크인 14:00-16:00
@@ -8633,7 +8677,12 @@ ${prefText ? `== 추가 요청사항 ==\n${prefText}\n` : ''}
 1. **위 도시 목록 그대로 ${cityDayPlan.length}개 도시를 JSON cities 배열에 출력하세요.** 당일치기 도시도 반드시 별도 cities 항목으로 출력. 합치거나 빼지 말 것.
 2. 각 도시의 days[]에는 위 "Day N" 번호 그대로 dayNumGlobal을 넣고, 베이스 도시는 위에 명시된 일수만큼 days를, 당일치기 도시는 정확히 1개 day를 출력.
 3. **당일치기 도시의 dayNumGlobal은 반드시 부모 베이스 도시의 day 중 하나와 같아야 함**. 부모 베이스의 그 날에는 이동/식사 정도만 가볍게(0~2개), 당일치기 도시 쪽에 본 일정(3~5개)을 채울 것.
-4. 각 Day에 베이스 기준 3-6개 일정 (관광지/식당/호텔/공항). 도착·출국일은 1-3개로 가볍게.
+4. 각 Day에 베이스 기준 3-6개 일정 (관광지/식당/숙소/공항). 도착·출국일은 1-3개로 가볍게.
+4-1. **숙소 시작/끝 규칙 (필수)**:
+    - 중간 Day(도착·출국일 제외)는 첫 일정과 마지막 일정이 모두 숙소(category="hotel"). 첫 숙소는 "아침 출발(체크아웃 또는 조식)" 의미로 06:30~07:30, duration=30. 마지막 숙소는 "복귀/취침" 의미로 21:30~22:30, duration=30.
+    - 도착일(Day 1): 첫 일정은 공항(airport), 마지막 일정은 반드시 숙소(hotel) 체크인. 숙소 중간 등장 금지.
+    - 출국일(마지막 Day): 첫 일정은 반드시 숙소(hotel) 체크아웃, 마지막 일정은 공항(airport).
+    - 당일치기 도시는 baseCity 숙소에서 출발→귀환하므로 별도 cities의 day items에는 숙소를 포함하지 말 것 (이동·관광·식사만).
 5. 12월 24일(이브), 12월 25일(크리스마스), 12월 31일(송년), 1월 1일(신정) 특수성 반영. 박물관 휴무일 12/25, 1/1 고려.
 6. 12월 말 겨울 (해 짧음, 16:30 일몰), 어린이 동선 고려.
 7. **공항 처리**:
