@@ -997,6 +997,88 @@
     box-shadow: 0 20px 50px rgba(0,0,0,0.25);
     width: 100%; max-width: 720px; max-height: 100%;
     display: flex; flex-direction: column; overflow: hidden;
+    transition: max-width 0.2s ease;
+  }
+  /* Places modal expands when lodging detail panel is open */
+  #placesModal .modal.with-detail { max-width: 1240px; }
+  .modal-split { display: flex; gap: 0; height: 100%; min-height: 0; }
+  .modal-split-left { flex: 1; min-width: 0; padding: 16px 20px; overflow-y: auto; }
+  .modal-split-right {
+    width: 480px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--bg-soft);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .lodging-detail-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg);
+  }
+  .lodging-detail-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lodging-detail-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+  /* When the right panel is shown, hide the modal-body padding to let the split fill */
+  #placesModal .modal.with-detail .modal-body { padding: 0; }
+  #placesModal .modal:not(.with-detail) .modal-body { padding: 16px 20px; }
+  #placesModal .modal:not(.with-detail) .modal-split-left { padding: 0; }
+  /* Lodging type filter chips */
+  .lodging-type-filter {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .lodging-type-filter .label { font-size: 12px; color: var(--text-mute); margin-right: 4px; }
+  .lodging-type-filter .ltf-chip {
+    padding: 4px 10px; border-radius: 999px; cursor: pointer;
+    font-size: 11.5px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text-soft);
+  }
+  .lodging-type-filter .ltf-chip.active {
+    background: var(--accent-soft); color: var(--accent); border-color: var(--accent);
+  }
+  /* Lodging row tweaks: photo + sub-type badge + price chip */
+  .place-row.lodging-row {
+    grid-template-columns: 84px minmax(0,1fr) auto;
+    gap: 10px;
+    padding: 8px;
+  }
+  .lodging-photo {
+    width: 84px; height: 68px; border-radius: 6px;
+    object-fit: cover; background: var(--bg-soft);
+    border: 1px solid var(--border);
+    display: block;
+  }
+  .lodging-photo-placeholder {
+    width: 84px; height: 68px; border-radius: 6px;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; color: var(--text-mute);
+  }
+  .lodging-subtype-badge {
+    display: inline-block; padding: 1px 7px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600;
+    background: var(--bg-soft); color: var(--text-soft);
+    border: 1px solid var(--border);
+    margin-left: 4px;
+  }
+  .lodging-subtype-badge.hotel { background: #e7f3fb; color: #0b6e99; border-color: #b6daea; }
+  .lodging-subtype-badge.guesthouse { background: #fff6e8; color: #d9730d; border-color: #f3d8aa; }
+  .lodging-subtype-badge.apartment { background: #f1e8f7; color: #6940a5; border-color: #d9c4eb; }
+  .lodging-price-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 11.5px; font-weight: 600;
+    background: rgba(15, 123, 108, 0.08); color: var(--green);
+    border: 1px solid rgba(15, 123, 108, 0.25);
+    margin-top: 3px;
+  }
+  .lodging-price-chip.loading {
+    background: var(--bg-soft); color: var(--text-mute);
+    border-color: var(--border); font-weight: 400;
   }
   .modal-header {
     padding: 16px 20px; border-bottom: 1px solid var(--border);
@@ -2239,18 +2321,28 @@
       <button class="modal-close" data-close="placesModal">×</button>
     </div>
     <div class="modal-body">
-      <div id="placesListView">
-        <div class="filter-bar">
-          <span class="label">정렬</span>
-          <div class="filter-chip active" data-sort="recommend">추천순</div>
-          <div class="filter-chip" data-sort="rating">별점순</div>
-          <div class="filter-chip" data-sort="reviews">리뷰많은순</div>
-          <div class="filter-chip" data-sort="favorites">★ 관심 등록 <span class="fav-count" id="favCountChip">0</span></div>
-          <input class="search" id="placeSearch" placeholder="검색..." />
-          <button class="btn primary" id="favCompareBtn" title="관심 등록한 항목들을 GPT가 비교 분석합니다."
-            style="padding:5px 10px; font-size:11.5px; flex-shrink:0;">🤖 관심 비교 분석</button>
+      <div class="modal-split">
+        <div class="modal-split-left" id="placesListView">
+          <div class="filter-bar">
+            <span class="label">정렬</span>
+            <div class="filter-chip active" data-sort="recommend">추천순</div>
+            <div class="filter-chip" data-sort="rating">별점순</div>
+            <div class="filter-chip" data-sort="reviews">리뷰많은순</div>
+            <div class="filter-chip" data-sort="favorites">★ 관심 등록 <span class="fav-count" id="favCountChip">0</span></div>
+            <input class="search" id="placeSearch" placeholder="검색..." />
+            <button class="btn primary" id="favCompareBtn" title="관심 등록한 항목들을 GPT가 비교 분석합니다."
+              style="padding:5px 10px; font-size:11.5px; flex-shrink:0;">🤖 관심 비교 분석</button>
+          </div>
+          <div class="lodging-type-filter" id="lodgingTypeFilter" style="display:none;"></div>
+          <div class="place-list" id="placeList"></div>
         </div>
-        <div class="place-list" id="placeList"></div>
+        <div class="modal-split-right" id="lodgingDetailPanel" style="display:none;">
+          <div class="lodging-detail-header">
+            <span class="lodging-detail-title" id="lodgingDetailTitle">숙소 상세</span>
+            <button class="modal-close" id="lodgingDetailClose">×</button>
+          </div>
+          <div class="lodging-detail-body" id="lodgingDetailBody"></div>
+        </div>
       </div>
       <div class="place-detail-view" id="placeDetailView">
         <span class="pd-back" id="pdBack">← 목록으로</span>
@@ -2550,6 +2642,9 @@ let infoWindow = null;
 let placesService = null;
 let visibleDays = null; // null = all days visible, single number = only that dayIdx visible
 let deleteMode = false; // edit mode: show X buttons next to each item
+let activeLodgingType = 'all'; // 'all' | 'hotel' | 'guesthouse' | 'apartment'
+let lodgingPriceCache = {}; // placeId -> "30만~60만원" string
+let lodgingPriceFetchInflight = false;
 
 // ===== FAVORITES (관심 등록) =====
 // Persisted per category — survives reloads. Each entry stores enough to re-render
@@ -5537,6 +5632,9 @@ async function openPlacesModal(category, dayIdx, replaceItemIdx) {
   document.getElementById('placesModal').classList.add('open');
   document.getElementById('placesListView').style.display = '';
   document.getElementById('placeDetailView').classList.remove('open');
+  // Reset side detail panel + lodging type filter when (re)opening
+  closeLodgingDetail();
+  activeLodgingType = 'all';
 
   document.querySelectorAll('#placesModal .filter-chip').forEach(c => {
     c.classList.toggle('active', c.dataset.sort === 'recommend');
@@ -5585,15 +5683,15 @@ async function fetchPlaces(category) {
     // we surface hotels, 한인민박 (Korean guesthouses), and apartment-style stays.
     const queries = category === 'hotel'
       ? [
-          { q: `best hotels in ${city.name}, Italy`, tag: '' },
-          { q: `한인민박 ${city.name} Italy Korean guesthouse`, tag: '한인민박' },
-          { q: `apartment vacation rental ${city.name} Italy`, tag: '아파트/렌탈' }
+          { q: `best hotels in ${city.name}, Italy`, subType: 'hotel', tag: '호텔' },
+          { q: `한인민박 ${city.name} Italy Korean guesthouse`, subType: 'guesthouse', tag: '한인민박' },
+          { q: `apartment vacation rental airbnb-style ${city.name} Italy`, subType: 'apartment', tag: '아파트/Airbnb' }
         ]
       : category === 'tour'
-        ? [{ q: `top tourist attractions in ${city.name}, Italy`, tag: '' }]
-        : [{ q: `top restaurants in ${city.name}, Italy`, tag: '' }];
+        ? [{ q: `top tourist attractions in ${city.name}, Italy`, subType: null, tag: '' }]
+        : [{ q: `top restaurants in ${city.name}, Italy`, subType: null, tag: '' }];
 
-    const runOne = ({ q, tag }) => new Promise(resolve => {
+    const runOne = ({ q, subType, tag }) => new Promise(resolve => {
       const request = {
         query: q,
         location: new google.maps.LatLng(city.lat, city.lng),
@@ -5605,20 +5703,31 @@ async function fetchPlaces(category) {
           resolve([]);
           return;
         }
-        resolve(results.slice(0, 10).map(p => ({
-          id: p.place_id,
-          name: p.name,
-          category,
-          rating: p.rating || null,
-          reviewCount: p.user_ratings_total || 0,
-          address: p.formatted_address || '',
-          lat: p.geometry.location.lat(),
-          lng: p.geometry.location.lng(),
-          description: tag || (p.types ? p.types.slice(0,2).join(', ') : ''),
-          priceLevel: p.price_level,
-          types: p.types,
-          _lodgingTag: tag || null
-        })));
+        resolve(results.slice(0, 10).map(p => {
+          // Extract first photo URL if available (textSearch results carry photos[])
+          let photoUrl = null;
+          try {
+            if (p.photos && p.photos.length > 0 && typeof p.photos[0].getUrl === 'function') {
+              photoUrl = p.photos[0].getUrl({ maxWidth: 240, maxHeight: 180 });
+            }
+          } catch (_) { photoUrl = null; }
+          return {
+            id: p.place_id,
+            name: p.name,
+            category,
+            subType: subType || null,
+            rating: p.rating || null,
+            reviewCount: p.user_ratings_total || 0,
+            address: p.formatted_address || '',
+            lat: p.geometry.location.lat(),
+            lng: p.geometry.location.lng(),
+            description: tag || (p.types ? p.types.slice(0,2).join(', ') : ''),
+            priceLevel: p.price_level,
+            types: p.types,
+            photoUrl,
+            _lodgingTag: tag || null
+          };
+        }));
       });
     });
 
@@ -5707,10 +5816,42 @@ function renderPlacesList() {
     return;
   }
   const isReplaceMode = pendingReplaceItemIdx !== null;
+  const isLodging = currentPlaceCategory === 'hotel';
+
+  // Render lodging type filter chips (only when category is hotel/lodging)
+  const typeFilterEl = document.getElementById('lodgingTypeFilter');
+  if (typeFilterEl) {
+    if (isLodging && !isFavView) {
+      const counts = { all: sorted.length, hotel: 0, guesthouse: 0, apartment: 0 };
+      sorted.forEach(p => { if (p.subType && counts[p.subType] != null) counts[p.subType]++; });
+      typeFilterEl.innerHTML = `
+        <span class="label">유형</span>
+        <span class="ltf-chip ${activeLodgingType === 'all' ? 'active' : ''}" data-ltype="all">전체 ${counts.all}</span>
+        <span class="ltf-chip ${activeLodgingType === 'hotel' ? 'active' : ''}" data-ltype="hotel">🏨 호텔 ${counts.hotel}</span>
+        <span class="ltf-chip ${activeLodgingType === 'guesthouse' ? 'active' : ''}" data-ltype="guesthouse">🏘 한인민박 ${counts.guesthouse}</span>
+        <span class="ltf-chip ${activeLodgingType === 'apartment' ? 'active' : ''}" data-ltype="apartment">🏢 아파트/Airbnb ${counts.apartment}</span>
+      `;
+      typeFilterEl.style.display = 'flex';
+      typeFilterEl.querySelectorAll('.ltf-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          activeLodgingType = chip.dataset.ltype;
+          renderPlacesList();
+        });
+      });
+    } else {
+      typeFilterEl.style.display = 'none';
+      typeFilterEl.innerHTML = '';
+    }
+  }
+
+  // Apply lodging subType filter
+  if (isLodging && !isFavView && activeLodgingType !== 'all') {
+    sorted = sorted.filter(p => p.subType === activeLodgingType);
+  }
 
   // Lodging-specific external search banner (Airbnb is not in Google Places)
   let extHtml = '';
-  if (currentPlaceCategory === 'hotel' && city) {
+  if (isLodging && city) {
     const q = encodeURIComponent(`${city.name}, Italy`);
     extHtml = `
       <div style="display:flex; gap:6px; flex-wrap:wrap; padding: 8px 10px; margin-bottom: 8px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;">
@@ -5721,6 +5862,8 @@ function renderPlacesList() {
       </div>
     `;
   }
+
+  const subTypeLabel = (st) => st === 'hotel' ? '호텔' : st === 'guesthouse' ? '한인민박' : st === 'apartment' ? '아파트/Airbnb' : '';
 
   list.innerHTML = extHtml + sorted.map((p, idx) => {
     const added = existingNames.has(p.name);
@@ -5736,6 +5879,42 @@ function renderPlacesList() {
     }
     const isFav = isFavorited(currentPlaceCategory, p);
     const favBtnLabel = isFav ? '★ 등록됨' : '☆ 관심';
+
+    // Lodging-specific row layout: photo + sub-type badge + price chip
+    if (isLodging) {
+      const photoHtml = p.photoUrl
+        ? `<img class="lodging-photo" src="${p.photoUrl}" alt="" loading="lazy" />`
+        : `<div class="lodging-photo-placeholder">🏨</div>`;
+      const subBadge = p.subType
+        ? `<span class="lodging-subtype-badge ${p.subType}">${subTypeLabel(p.subType)}</span>`
+        : '';
+      const cached = p.id ? lodgingPriceCache[p.id] : null;
+      const priceChip = cached
+        ? `<div class="lodging-price-chip">💰 ${cached}</div>`
+        : `<div class="lodging-price-chip loading" data-price-for="${p.id || ''}">💰 추정 중...</div>`;
+      return `
+        <div class="place-row lodging-row" data-idx="${idx}">
+          ${photoHtml}
+          <div>
+            <div class="place-detail-name">
+              <span>${p.name}</span>${subBadge}
+            </div>
+            <div class="place-detail-meta">
+              ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : '<span style="color:var(--text-mute);">평점 없음</span>'}
+              ${p.priceLevel != null ? `<span style="color:var(--text-mute);">${'₩'.repeat((p.priceLevel || 0) + 1)}</span>` : ''}
+            </div>
+            ${priceChip}
+            ${p.address ? `<div class="place-detail-desc" style="margin-top:3px;">📍 ${p.address}</div>` : ''}
+          </div>
+          <div class="place-actions">
+            <button class="${btnClass}" data-act="add" data-idx="${idx}">${btnLabel}</button>
+            <button class="fav-toggle-btn ${isFav ? 'fav' : ''}" data-act="fav" data-idx="${idx}" title="관심 등록 토글">${favBtnLabel}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Default (non-lodging) row
     return `
       <div class="place-row" data-idx="${idx}">
         <div class="place-rank">${isFavView ? '★' : (idx + 1)}</div>
@@ -5760,7 +5939,15 @@ function renderPlacesList() {
 
   list.querySelectorAll('.place-row').forEach(row => {
     const idx = parseInt(row.dataset.idx, 10);
-    row.addEventListener('dblclick', () => showPlaceDetail(sorted[idx]));
+    // For lodging: single click opens right-side detail panel; for others, dblclick still works
+    if (isLodging) {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('[data-act]')) return;
+        showLodgingDetail(sorted[idx]);
+      });
+    } else {
+      row.addEventListener('dblclick', () => showPlaceDetail(sorted[idx]));
+    }
     const addBtn = row.querySelector('[data-act="add"]');
     if (addBtn) addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5784,6 +5971,246 @@ function renderPlacesList() {
       renderPlacesList();
     });
   });
+
+  // Trigger batch price estimation for lodgings (cached, only fetches missing ones)
+  if (isLodging && sorted.length > 0) {
+    triggerBatchLodgingPrices(sorted, city);
+  }
+}
+
+// Close the right-side lodging detail panel and shrink modal back.
+function closeLodgingDetail() {
+  const modal = document.querySelector('#placesModal .modal');
+  const panel = document.getElementById('lodgingDetailPanel');
+  if (modal) modal.classList.remove('with-detail');
+  if (panel) {
+    panel.style.display = 'none';
+    const body = document.getElementById('lodgingDetailBody');
+    if (body) body.innerHTML = '';
+  }
+}
+
+// Open the right-side lodging detail panel inside the places modal.
+async function showLodgingDetail(place) {
+  const modal = document.querySelector('#placesModal .modal');
+  const panel = document.getElementById('lodgingDetailPanel');
+  const title = document.getElementById('lodgingDetailTitle');
+  const body = document.getElementById('lodgingDetailBody');
+  if (!modal || !panel || !body) return;
+  modal.classList.add('with-detail');
+  panel.style.display = 'flex';
+  title.textContent = place.name;
+
+  // Render skeleton + structure mirroring the right sidebar in city view
+  body.innerHTML = `
+    <div class="day-cover alpine" style="height:140px; border-radius:6px; margin-bottom:14px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #4A8FD9 0%, #2383e2 100%);">
+      ${place.photoUrl
+        ? `<img src="${place.photoUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;" />`
+        : `<div class="day-emoji" style="font-size:48px;">🏨</div>`}
+    </div>
+    <div style="font-size:11px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.04em;margin: 0 0 4px;">
+      ${place.subType === 'guesthouse' ? '한인민박' : place.subType === 'apartment' ? '아파트/Airbnb' : '호텔'}
+    </div>
+    <h1 style="font-size: 18px; font-weight: 700; margin: 0 0 4px; line-height: 1.3;">${place.name}</h1>
+    <div class="day-subtitle">${place.rating ? `★ ${place.rating} · 리뷰 ${(place.reviewCount || 0).toLocaleString()}` : '평점 없음'}</div>
+    <div class="properties" id="lodgingPlaceProps">
+      ${place.address ? `<div class="prop-row"><div class="prop-label">📍 주소</div><div class="prop-value">${place.address}</div></div>` : ''}
+      ${place.rating ? `<div class="prop-row"><div class="prop-label">⭐ 평점</div><div class="prop-value">${place.rating} (${(place.reviewCount || 0).toLocaleString()})</div></div>` : ''}
+    </div>
+    <div id="lodgingPlaceMoreInfo"></div>
+    ${renderHotelPricePanel(place)}
+
+    <div class="nblock-h2">🤖 AI 리뷰 요약</div>
+    <div id="lodgingAiReviewSummary">
+      <div class="skeleton"></div>
+      <div class="skeleton" style="width: 85%;"></div>
+    </div>
+
+    <div class="nblock-h2">💬 방문객 리뷰</div>
+    <div id="lodgingReviewsList">
+      <div class="skeleton"></div>
+      <div class="skeleton" style="width: 80%;"></div>
+    </div>
+  `;
+
+  // Load Place Details (photos, reviews) into the lodging panel
+  loadLodgingPlaceDetails(place);
+
+  // AI review summary (mirrors getAIReviewSummary; uses same cache key per place id)
+  if (openaiKey) {
+    getAIReviewSummary(place).then(summary => {
+      const el = document.getElementById('lodgingAiReviewSummary');
+      if (el) el.innerHTML = `<div class="ai-content">${renderMarkdown(summary)}</div>`;
+    }).catch(err => {
+      const el = document.getElementById('lodgingAiReviewSummary');
+      if (el) el.innerHTML = `<div style="color:var(--text-mute); font-size:12px;">${err.message || '리뷰 요약 실패'}</div>`;
+    });
+  } else {
+    const el = document.getElementById('lodgingAiReviewSummary');
+    if (el) el.innerHTML = `<div style="color:var(--text-mute); font-size:12px;">OpenAI API 키를 등록하면 AI 리뷰 요약이 표시됩니다.</div>`;
+  }
+}
+
+// Variant of loadPlaceDetails that writes to lodgingPlaceMoreInfo / lodgingReviewsList / lodgingPlaceProps
+function loadLodgingPlaceDetails(place) {
+  const moreInfoEl = document.getElementById('lodgingPlaceMoreInfo');
+  const reviewsEl = document.getElementById('lodgingReviewsList');
+  const propsEl = document.getElementById('lodgingPlaceProps');
+
+  if (!placesService || !place.id || place.id.startsWith('demo_')) {
+    if (moreInfoEl) moreInfoEl.innerHTML = '';
+    if (reviewsEl) reviewsEl.innerHTML = '<div style="color:var(--text-mute);font-size:12px;">상세 정보를 가져오려면 Google API 키가 필요합니다.</div>';
+    return;
+  }
+
+  placesService.getDetails({
+    placeId: place.id,
+    fields: ['name', 'formatted_address', 'formatted_phone_number', 'website', 'url',
+             'photos', 'reviews', 'price_level', 'rating', 'user_ratings_total', 'editorial_summary'],
+    language: 'ko'
+  }, (details, status) => {
+    if (status !== google.maps.places.PlacesServiceStatus.OK || !details) {
+      if (reviewsEl) reviewsEl.innerHTML = '<div style="color:var(--text-mute);font-size:12px;">상세 정보를 가져올 수 없습니다.</div>';
+      return;
+    }
+
+    // Extra props
+    let extraProps = '';
+    if (details.formatted_phone_number) {
+      extraProps += `<div class="prop-row"><div class="prop-label">📞 전화</div><div class="prop-value"><a href="tel:${details.formatted_phone_number}" style="color:var(--accent);text-decoration:none;">${details.formatted_phone_number}</a></div></div>`;
+    }
+    if (details.website) {
+      extraProps += `<div class="prop-row"><div class="prop-label">🔗 홈페이지</div><div class="prop-value"><a href="${details.website}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">방문</a></div></div>`;
+    }
+    if (details.url) {
+      extraProps += `<div class="prop-row"><div class="prop-label">🗺️ 구글 지도</div><div class="prop-value"><a href="${details.url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">지도에서 열기</a></div></div>`;
+    }
+    if (extraProps && propsEl) propsEl.insertAdjacentHTML('beforeend', extraProps);
+
+    // Editorial summary + photo grid
+    let moreHtml = '';
+    if (details.editorial_summary?.overview) {
+      moreHtml += `<div class="callout tip" style="margin-top:10px;">💡 ${details.editorial_summary.overview}</div>`;
+    }
+    if (details.photos && details.photos.length > 0) {
+      const fullUrls = details.photos.slice(0, 10).map(p => p.getUrl({ maxWidth: 1600, maxHeight: 1200 }));
+      const thumbUrls = details.photos.slice(0, 8).map(p => p.getUrl({ maxWidth: 200, maxHeight: 150 }));
+      window.__currentLodgingPhotos = fullUrls;
+      moreHtml += `
+        <div style="margin-top:12px;">
+          <div class="photo-grid lodging-photo-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px;">
+            ${thumbUrls.map((u, i) => `<img src="${u}" data-photo-idx="${i}" style="width:100%; height:64px; object-fit:cover; border-radius:4px; cursor:pointer;" loading="lazy" alt="" />`).join('')}
+          </div>
+        </div>`;
+    }
+    if (moreInfoEl) {
+      moreInfoEl.innerHTML = moreHtml;
+      moreInfoEl.querySelectorAll('.lodging-photo-grid img').forEach(img => {
+        img.addEventListener('click', () => {
+          const idx = parseInt(img.dataset.photoIdx, 10);
+          openLightbox(window.__currentLodgingPhotos || [], idx);
+        });
+      });
+    }
+
+    // Reviews
+    if (details.reviews && details.reviews.length > 0) {
+      const top = details.reviews.slice(0, 5);
+      const reviewsHtml = top.map(r => {
+        const date = r.relative_time_description || '';
+        const stars = '★'.repeat(Math.round(r.rating)) + '☆'.repeat(5 - Math.round(r.rating));
+        const text = (r.text || '').length > 220 ? r.text.slice(0, 220) + '…' : (r.text || '');
+        return `
+          <div style="padding:10px 0; border-bottom:1px solid var(--border); font-size:12.5px; line-height:1.55;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <div style="font-weight:500; color:var(--text);">${r.author_name || '익명'}</div>
+              <div style="font-size:11px; color:var(--text-mute);">${date}</div>
+            </div>
+            <div style="color:var(--orange); font-size:11px; margin-bottom:4px;">${stars} <span style="color:var(--text-mute);">${r.rating}</span></div>
+            <div style="color:var(--text-soft);">${text}</div>
+          </div>
+        `;
+      }).join('');
+      if (reviewsEl) reviewsEl.innerHTML = reviewsHtml;
+    } else if (reviewsEl) {
+      reviewsEl.innerHTML = '<div style="color:var(--text-mute); font-size:12px;">표시할 리뷰가 없습니다.</div>';
+    }
+  });
+}
+
+// Batch GPT call to estimate KRW prices for an array of lodgings.
+// Caches results in lodgingPriceCache by placeId. Updates the DOM .lodging-price-chip[data-price-for] in place.
+async function triggerBatchLodgingPrices(places, city) {
+  if (lodgingPriceFetchInflight) return;
+  if (!openaiKey) {
+    // No key — surface a static message in the price chips
+    document.querySelectorAll('.lodging-price-chip.loading[data-price-for]').forEach(el => {
+      el.textContent = '💰 가격 정보 없음 (API 키 필요)';
+      el.classList.remove('loading');
+      el.style.opacity = '0.6';
+    });
+    return;
+  }
+  const targets = places.filter(p => p.id && !lodgingPriceCache[p.id]);
+  if (targets.length === 0) return;
+  lodgingPriceFetchInflight = true;
+  try {
+    const numbered = targets.map((p, i) =>
+      `${i+1}. ${p.name}${p.address ? ' (' + p.address + ')' : ''}${p.rating ? ' [평점 ' + p.rating + ']' : ''}${p.priceLevel != null ? ' [Google 가격대 ' + ('$'.repeat((p.priceLevel || 0) + 1)) + ']' : ''}`
+    ).join('\n');
+    const prompt = `이탈리아 ${city ? city.name : ''}의 다음 숙소들의 2025년 12월 말 ~ 2026년 1월 초 (성수기·연말) 가족 4인 (성인 2 + 어린이 2) 기준 1박 가격을 한국 원화 범위로 추정해주세요.
+
+숙소 목록:
+${numbered}
+
+JSON으로만 응답. rangeKRW는 "30만~60만원" 같은 한국어 범위 표기.
+{
+  "prices": [
+    { "index": 1, "rangeKRW": "30만~60만원" }
+  ]
+}`;
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        response_format: { type: 'json_object' }
+      })
+    });
+    if (!resp.ok) throw new Error('OpenAI ' + resp.status);
+    const data = await resp.json();
+    const parsed = JSON.parse(data.choices[0].message.content);
+    (parsed.prices || []).forEach(row => {
+      const idx = (row.index || 0) - 1;
+      const place = targets[idx];
+      if (place && place.id && row.rangeKRW) {
+        lodgingPriceCache[place.id] = row.rangeKRW;
+      }
+    });
+    // Patch DOM in place — replace skeleton chips with values
+    document.querySelectorAll('.lodging-price-chip.loading[data-price-for]').forEach(el => {
+      const pid = el.dataset.priceFor;
+      if (pid && lodgingPriceCache[pid]) {
+        el.textContent = '💰 ' + lodgingPriceCache[pid];
+        el.classList.remove('loading');
+      } else if (pid) {
+        el.textContent = '💰 가격 정보 없음';
+        el.classList.remove('loading');
+        el.style.opacity = '0.6';
+      }
+    });
+  } catch (err) {
+    console.warn('Batch lodging price failed:', err);
+    document.querySelectorAll('.lodging-price-chip.loading').forEach(el => {
+      el.textContent = '💰 가격 추정 실패';
+      el.classList.remove('loading');
+      el.style.opacity = '0.6';
+    });
+  } finally {
+    lodgingPriceFetchInflight = false;
+  }
 }
 
 // ===== FAVORITES COMPARE/ANALYZE =====
@@ -8104,16 +8531,21 @@ document.querySelectorAll('[data-close]').forEach(btn => {
     document.getElementById(id).classList.remove('open');
     if (id === 'placesModal') {
       pendingReplaceItemIdx = null;
+      closeLodgingDetail();
       maybeRestoreFromCalendarPick();
     }
   });
 });
+
+// Lodging detail panel close button
+document.getElementById('lodgingDetailClose').addEventListener('click', closeLodgingDetail);
 document.querySelectorAll('.modal-backdrop').forEach(bd => {
   bd.addEventListener('click', (e) => {
     if (e.target === bd) {
       bd.classList.remove('open');
       if (bd.id === 'placesModal') {
         pendingReplaceItemIdx = null;
+        closeLodgingDetail();
         maybeRestoreFromCalendarPick();
       }
     }
