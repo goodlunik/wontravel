@@ -1102,7 +1102,7 @@
   }
 
   .filter-bar {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     margin-bottom: 14px; padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
   }
@@ -1495,6 +1495,77 @@
   .ai-progress .step.current::before { content: '▸ '; }
   .ai-progress .step.pending { color: var(--text-mute); }
   .ai-progress .step.pending::before { content: '○ '; }
+
+  /* ========== AI PLACES RECOMMENDATION MODAL ========== */
+  .ai-rec-intro {
+    font-size: 12.5px; color: var(--text-mute); margin-bottom: 14px; line-height: 1.5;
+  }
+  .ai-rec-group { margin-bottom: 14px; }
+  .ai-rec-group-label {
+    font-size: 11px; font-weight: 600; color: var(--text-mute);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .ai-rec-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ai-rec-chip {
+    display: inline-flex; align-items: center;
+    padding: 5px 11px; border-radius: 14px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    font-size: 12px; color: var(--text-soft);
+    cursor: pointer; user-select: none;
+    transition: all 0.1s;
+  }
+  .ai-rec-chip:hover { background: var(--bg-hover); }
+  .ai-rec-chip.active {
+    background: #6940a5; border-color: #6940a5; color: white;
+  }
+  .ai-rec-textarea {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; outline: none; resize: vertical;
+    min-height: 64px; font-family: inherit; line-height: 1.5;
+  }
+  .ai-rec-textarea:focus { border-color: #6940a5; box-shadow: 0 0 0 1px #6940a5; }
+  .ai-rec-results { margin-top: 14px; }
+  .ai-rec-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg);
+  }
+  .ai-rec-card .h {
+    font-size: 13.5px; font-weight: 600; color: var(--text);
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  }
+  .ai-rec-card .h .name-ko {
+    color: var(--text-mute); font-weight: 400; font-size: 12px; margin-left: 4px;
+  }
+  .ai-rec-card .why {
+    font-size: 12px; color: var(--text-soft); margin-top: 4px; line-height: 1.5;
+  }
+  .ai-rec-card .tags {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+  }
+  .ai-rec-card .tag {
+    font-size: 10.5px; padding: 2px 7px; border-radius: 10px;
+    background: var(--bg-soft); color: var(--text-soft);
+    border: 1px solid var(--border);
+  }
+  .ai-rec-card-btn {
+    flex-shrink: 0;
+    padding: 4px 10px; border-radius: 4px;
+    border: 1px solid #6940a5; background: white; color: #6940a5;
+    font-size: 11.5px; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+  }
+  .ai-rec-card-btn:hover { background: #6940a5; color: white; }
+  .ai-rec-card-btn.added { background: var(--bg-soft); color: var(--text-mute); border-color: var(--border); cursor: default; }
+  .ai-rec-card-btn.loading { opacity: 0.7; cursor: wait; }
+  .ai-rec-empty {
+    padding: 18px; text-align: center; color: var(--text-mute); font-size: 12.5px;
+  }
 
   /* ========== PRINT VIEW ========== */
   .print-view {
@@ -2342,6 +2413,8 @@
             <div class="filter-chip" data-sort="reviews">리뷰많은순</div>
             <div class="filter-chip" data-sort="favorites">★ 관심 등록 <span class="fav-count" id="favCountChip">0</span></div>
             <input class="search" id="placeSearch" placeholder="검색..." />
+            <button class="btn primary" id="aiRecBtn" title="현재 도시 내에서 AI가 맞춤 추천합니다."
+              style="padding:5px 10px; font-size:11.5px; flex-shrink:0; background:#6940a5;">✨ AI 추천</button>
             <button class="btn primary" id="favCompareBtn" title="관심 등록한 항목들을 GPT가 비교 분석합니다."
               style="padding:5px 10px; font-size:11.5px; flex-shrink:0;">🤖 관심 비교 분석</button>
           </div>
@@ -2464,6 +2537,32 @@
       <button class="modal-close" data-close="favCompareModal">×</button>
     </div>
     <div class="modal-body" id="favCompareBody"></div>
+  </div>
+</div>
+
+<!-- AI Places Recommendation modal -->
+<div class="modal-backdrop" id="aiPlacesRecModal">
+  <div class="modal" style="max-width: 640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="aiPlacesRecTitle">✨ AI 추천</div>
+      <button class="modal-close" data-close="aiPlacesRecModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="ai-rec-intro" id="aiPlacesRecIntro">
+        조건을 선택하거나 메시지를 직접 입력하세요. GPT가 현재 도시 내에서 맞춤 추천을 찾아드립니다.
+      </div>
+      <div id="aiPlacesRecPresets"></div>
+      <div class="ai-rec-group">
+        <div class="ai-rec-group-label">💬 추가 요청사항 (선택)</div>
+        <textarea class="ai-rec-textarea" id="aiPlacesRecPrompt"
+          placeholder="예: 12월 말 분위기 좋은 곳, 어린이가 좋아할 만한 곳, 현지인 맛집..."></textarea>
+      </div>
+      <div class="ai-rec-results" id="aiPlacesRecResult"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="aiPlacesRecModal">닫기</button>
+      <button class="btn primary" id="aiPlacesRecStartBtn" style="background:#6940a5;">✨ 추천 받기</button>
+    </div>
   </div>
 </div>
 
@@ -6095,6 +6194,12 @@ function renderPlacesList() {
     const subBadge = (isLodging && p.subType)
       ? ` <span class="lodging-subtype-badge ${p.subType}">${subTypeLabel(p.subType)}</span>`
       : '';
+    const aiBadge = p._aiRec
+      ? ` <span class="lodging-subtype-badge" style="background:#f1e8f7; color:#6940a5; border-color:#d9c4eb;">✨ AI 추천</span>`
+      : '';
+    const aiWhyHtml = p._aiRec && p._aiWhy
+      ? `<div class="place-detail-desc" style="margin-top:3px; color:#6940a5;">💡 ${p._aiWhy}</div>`
+      : '';
 
     let priceChip = '';
     if (isLodging) {
@@ -6108,11 +6213,12 @@ function renderPlacesList() {
       <div class="place-row lodging-row" data-idx="${idx}">
         ${photoHtml}
         <div>
-          <div class="place-detail-name">${p.name}${subBadge}</div>
+          <div class="place-detail-name">${p.name}${subBadge}${aiBadge}</div>
           <div class="place-detail-meta">
             ${p.rating ? `<span><span class="star">★</span> ${p.rating} (${(p.reviewCount || 0).toLocaleString()})</span>` : '<span style="color:var(--text-mute);">평점 없음</span>'}
           </div>
           ${priceChip}
+          ${aiWhyHtml}
           ${p.address ? `<div class="place-detail-desc" style="margin-top:3px;">📍 ${p.address}</div>` : ''}
         </div>
         <div class="place-actions">
@@ -6586,6 +6692,284 @@ function renderFavCompareResult(result, category) {
     `).join('');
   }
   target.innerHTML = html || '<div style="color:var(--text-mute); font-size:12px;">분석 결과가 비어 있습니다.</div>';
+}
+
+// ===== AI PLACES RECOMMENDATION =====
+const AI_REC_PRESETS = {
+  tour: [
+    { key: 'kind',  label: '종류',   multi: true,  options: ['박물관', '미술관', '유적지', '자연/공원', '야경 명소', '종교/성당', '광장/거리', '쇼핑'] },
+    { key: 'mood',  label: '특성',   multi: true,  options: ['실내 위주', '야외 위주', '가족 친화', '어린이 추천', '사진 명소', '한적함', '현지인 추천'] },
+    { key: 'cost',  label: '비용',   multi: false, options: ['상관없음', '무료 위주', '럭셔리 OK'] }
+  ],
+  hotel: [
+    { key: 'type',  label: '유형',   multi: true,  options: ['호텔', '한인민박', '아파트/Airbnb', 'B&B'] },
+    { key: 'price', label: '가격대', multi: false, options: ['저렴 (~10만)', '중간 (~25만)', '고급 (~50만)', '럭셔리 (50만+)'] },
+    { key: 'loc',   label: '위치',   multi: true,  options: ['중심부', '기차역 근처', '조용한 곳', '관광지 도보 거리', '한인 거주지'] },
+    { key: 'amen',  label: '시설',   multi: true,  options: ['가족룸', '조식 포함', '주차 가능', '욕조', '주방 있음', '엘리베이터'] }
+  ],
+  food: [
+    { key: 'cuisine', label: '음식', multi: true,  options: ['이탈리안', '피자', '파스타', '시푸드', '스테이크', '한식', '카페/디저트', '길거리 음식', '젤라토'] },
+    { key: 'price',   label: '가격대', multi: false, options: ['저렴', '중간', '고급', '미슐랭'] },
+    { key: 'mood',    label: '분위기', multi: true, options: ['캐주얼', '가족 친화', '로맨틱', '전망 좋은', '현지인 맛집', '관광지 근처'] },
+    { key: 'meal',    label: '식사 시간', multi: false, options: ['상관없음', '점심', '저녁', '브런치'] }
+  ]
+};
+let aiRecSelections = {}; // { groupKey: Set(option) | option }
+let aiRecAddedIds = new Set(); // names already added during this session
+
+function renderAiRecPresets() {
+  const cat = currentPlaceCategory;
+  const wrap = document.getElementById('aiPlacesRecPresets');
+  const groups = AI_REC_PRESETS[cat] || [];
+  wrap.innerHTML = groups.map(g => {
+    const chips = g.options.map(opt => {
+      const isActive = g.multi
+        ? (aiRecSelections[g.key] && aiRecSelections[g.key].has(opt))
+        : (aiRecSelections[g.key] === opt);
+      return `<span class="ai-rec-chip ${isActive ? 'active' : ''}" data-group="${g.key}" data-opt="${opt}" data-multi="${g.multi}">${opt}</span>`;
+    }).join('');
+    return `<div class="ai-rec-group">
+      <div class="ai-rec-group-label">${g.label}${g.multi ? ' (복수 선택)' : ''}</div>
+      <div class="ai-rec-chips">${chips}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.ai-rec-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const groupKey = chip.dataset.group;
+      const opt = chip.dataset.opt;
+      const multi = chip.dataset.multi === 'true';
+      if (multi) {
+        if (!aiRecSelections[groupKey]) aiRecSelections[groupKey] = new Set();
+        if (aiRecSelections[groupKey].has(opt)) aiRecSelections[groupKey].delete(opt);
+        else aiRecSelections[groupKey].add(opt);
+      } else {
+        aiRecSelections[groupKey] = aiRecSelections[groupKey] === opt ? null : opt;
+      }
+      renderAiRecPresets();
+    });
+  });
+}
+
+function openAiPlacesRecModal() {
+  const cat = currentPlaceCategory;
+  const city = cities.find(c => c.id === currentCityId);
+  if (!cat || !city) {
+    alert('도시를 먼저 선택해주세요.');
+    return;
+  }
+  aiRecSelections = {};
+  aiRecAddedIds = new Set();
+  document.getElementById('aiPlacesRecTitle').textContent =
+    `✨ ${city.ko || city.name} ${categoryLabel(cat)} AI 추천`;
+  document.getElementById('aiPlacesRecPrompt').value = '';
+  document.getElementById('aiPlacesRecResult').innerHTML = '';
+  renderAiRecPresets();
+  document.getElementById('aiPlacesRecModal').classList.add('open');
+}
+
+function buildAiRecSelectionText() {
+  const cat = currentPlaceCategory;
+  const groups = AI_REC_PRESETS[cat] || [];
+  const lines = [];
+  groups.forEach(g => {
+    const sel = aiRecSelections[g.key];
+    if (g.multi) {
+      if (sel && sel.size > 0) lines.push(`- ${g.label}: ${Array.from(sel).join(', ')}`);
+    } else {
+      if (sel) lines.push(`- ${g.label}: ${sel}`);
+    }
+  });
+  return lines.join('\n');
+}
+
+async function runAiPlacesRecommendation() {
+  const cat = currentPlaceCategory;
+  const city = cities.find(c => c.id === currentCityId);
+  if (!cat || !city) return;
+  const userPrompt = document.getElementById('aiPlacesRecPrompt').value.trim();
+  const selectionText = buildAiRecSelectionText();
+
+  const resultEl = document.getElementById('aiPlacesRecResult');
+  const startBtn = document.getElementById('aiPlacesRecStartBtn');
+  startBtn.disabled = true;
+  startBtn.textContent = '추천 중...';
+  resultEl.innerHTML = `
+    <div class="skeleton"></div>
+    <div class="skeleton" style="width: 85%;"></div>
+    <div class="skeleton" style="width: 70%;"></div>
+    <div style="font-size:11.5px; color:var(--text-mute); margin-top:8px;">GPT가 ${city.ko || city.name}의 ${categoryLabel(cat)}을 추천 중...</div>
+  `;
+
+  try {
+    const items = await fetchAiPlaceRecommendations(cat, city, selectionText, userPrompt);
+    renderAiRecResults(items, cat);
+  } catch (err) {
+    resultEl.innerHTML = `<div style="color:var(--red); font-size:12.5px; padding: 12px;">추천 실패: ${err.message}</div>`;
+  } finally {
+    startBtn.disabled = false;
+    startBtn.textContent = '✨ 다시 추천';
+  }
+}
+
+async function fetchAiPlaceRecommendations(category, city, selectionText, userPrompt) {
+  if (!openaiKey) {
+    return [
+      { name: city.name + ' 데모 추천 1', ko: '데모', why: '⚠️ OpenAI API 키를 설정하면 실제 GPT 추천이 표시됩니다.', tags: ['데모'] },
+      { name: city.name + ' 데모 추천 2', ko: '데모', why: '키 설정 후 다시 시도해주세요.', tags: ['데모'] }
+    ];
+  }
+  const catLabel = categoryLabel(category);
+  const profile = '가족 여행 (성인 2명 + 초6 + 초1, 2025년 12월 말 ~ 2026년 1월 초)';
+  const prompt = `이탈리아 ${city.name}(${city.ko || ''}) 내에서 ${profile}에 어울리는 ${catLabel} 6-8곳을 추천해주세요.
+
+${selectionText ? `[사용자 선택 조건]\n${selectionText}\n` : ''}${userPrompt ? `\n[추가 요청사항]\n${userPrompt}\n` : ''}
+
+요구사항:
+- 반드시 ${city.name} 시내 또는 인근(차로 30분 이내)에 실제로 존재하는 장소만 추천
+- 관광객 함정보다는 실제로 평이 좋은 곳 위주
+- name은 Google Maps에서 검색되는 실제 이름(영어 또는 이탈리아어 정식 명칭)
+- ko는 한국어로 부르는 이름 (없으면 음역)
+- why는 한 줄(40자 이내)로 추천 이유
+- tags는 핵심 키워드 2-4개 (예: "야외", "어린이 추천", "10만원대")
+
+JSON으로만 응답 (다른 텍스트 없이):
+{
+  "items": [
+    { "name": "...", "ko": "...", "why": "...", "tags": ["...", "..."] }
+  ]
+}`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.6,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  const data = await resp.json();
+  const parsed = JSON.parse(data.choices[0].message.content);
+  return parsed.items || [];
+}
+
+function renderAiRecResults(items, category) {
+  const resultEl = document.getElementById('aiPlacesRecResult');
+  if (!items || items.length === 0) {
+    resultEl.innerHTML = `<div class="ai-rec-empty">추천 결과가 없습니다. 조건을 바꾸어 다시 시도해주세요.</div>`;
+    return;
+  }
+  const hasGoogle = !!(googleKey && placesService);
+  const headerHtml = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin: 4px 0 8px;">
+      <div style="font-size:12.5px; font-weight:600; color:var(--text);">📋 추천 ${items.length}곳</div>
+      ${hasGoogle ? `<button class="btn" id="aiRecAddAllBtn" style="padding:4px 10px; font-size:11.5px; border:1px solid #6940a5; color:#6940a5;">📍 모두 목록에 추가</button>` : ''}
+    </div>
+  `;
+  const cardsHtml = items.map((it, idx) => {
+    const tagsHtml = (it.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+    const btnHtml = hasGoogle
+      ? `<button class="ai-rec-card-btn" data-act="add-one" data-idx="${idx}">+ 목록에 추가</button>`
+      : `<a class="ai-rec-card-btn" href="https://www.google.com/maps/search/${encodeURIComponent((it.name || '') + ' ' + (cities.find(c => c.id === currentCityId)?.name || '') + ' Italy')}" target="_blank" rel="noopener" style="text-decoration:none;">🗺️ 지도에서 보기</a>`;
+    return `
+      <div class="ai-rec-card" data-idx="${idx}">
+        <div class="h">
+          <div>${it.name || ''}${it.ko && it.ko !== it.name ? `<span class="name-ko">(${it.ko})</span>` : ''}</div>
+          ${btnHtml}
+        </div>
+        ${it.why ? `<div class="why">${it.why}</div>` : ''}
+        ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+  resultEl.innerHTML = headerHtml + cardsHtml;
+
+  resultEl.querySelectorAll('[data-act="add-one"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      const item = items[idx];
+      btn.classList.add('loading');
+      btn.textContent = '검색 중...';
+      const added = await addAiRecToPlaceList(item, category);
+      if (added) {
+        btn.classList.remove('loading');
+        btn.classList.add('added');
+        btn.textContent = '✓ 추가됨';
+        btn.disabled = true;
+      } else {
+        btn.classList.remove('loading');
+        btn.textContent = '⚠️ 찾을 수 없음';
+        setTimeout(() => { btn.textContent = '+ 목록에 추가'; btn.disabled = false; }, 1800);
+      }
+    });
+  });
+
+  const addAllBtn = document.getElementById('aiRecAddAllBtn');
+  if (addAllBtn) {
+    addAllBtn.addEventListener('click', async () => {
+      addAllBtn.disabled = true;
+      addAllBtn.textContent = '검색 중...';
+      let count = 0;
+      for (let i = 0; i < items.length; i++) {
+        const btn = resultEl.querySelector(`[data-act="add-one"][data-idx="${i}"]`);
+        if (btn && btn.classList.contains('added')) continue;
+        const ok = await addAiRecToPlaceList(items[i], category);
+        if (ok && btn) {
+          btn.classList.add('added');
+          btn.textContent = '✓ 추가됨';
+          btn.disabled = true;
+          count++;
+        }
+      }
+      addAllBtn.textContent = `✓ ${count}곳 추가됨`;
+    });
+  }
+}
+
+// Use Google Places textSearch to find the place GPT recommended, then prepend
+// it to currentPlaceList so the user can add/favorite via the existing UI.
+function findGooglePlaceByName(city, name) {
+  return new Promise(resolve => {
+    if (!placesService) { resolve(null); return; }
+    const request = {
+      query: `${name} ${city.name} Italy`,
+      location: new google.maps.LatLng(city.lat, city.lng),
+      radius: 15000,
+      language: 'ko'
+    };
+    placesService.textSearch(request, (results, status) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK && results && results[0]) {
+        resolve(results[0]);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+async function addAiRecToPlaceList(item, category) {
+  const city = cities.find(c => c.id === currentCityId);
+  if (!city || !googleKey || !placesService) return false;
+  const queryName = item.name || item.ko;
+  if (!queryName) return false;
+  const result = await findGooglePlaceByName(city, queryName);
+  if (!result) return false;
+  const mapped = mapPlaceResult(result, category, null, item.tags && item.tags[0] ? item.tags[0] : '✨ AI 추천');
+  mapped._aiRec = true;
+  mapped._aiWhy = item.why || '';
+  // Prepend, avoiding duplicates by id
+  const existsIdx = currentPlaceList.findIndex(p => p.id === mapped.id);
+  if (existsIdx >= 0) {
+    currentPlaceList[existsIdx]._aiRec = true;
+    currentPlaceList[existsIdx]._aiWhy = mapped._aiWhy;
+  } else {
+    currentPlaceList.unshift(mapped);
+  }
+  aiRecAddedIds.add(mapped.id);
+  renderPlacesList();
+  return true;
 }
 
 async function addPlaceToDay(place, dayIdx, replaceItemIdx) {
@@ -8750,6 +9134,10 @@ document.getElementById('pdBack').addEventListener('click', () => {
 });
 const favCmpBtn = document.getElementById('favCompareBtn');
 if (favCmpBtn) favCmpBtn.addEventListener('click', openFavCompareModal);
+const aiRecBtn = document.getElementById('aiRecBtn');
+if (aiRecBtn) aiRecBtn.addEventListener('click', openAiPlacesRecModal);
+const aiRecStartBtn = document.getElementById('aiPlacesRecStartBtn');
+if (aiRecStartBtn) aiRecStartBtn.addEventListener('click', runAiPlacesRecommendation);
 
 document.getElementById('keyBtn').addEventListener('click', () => {
   document.getElementById('openaiKeyInput').value = openaiKey;
