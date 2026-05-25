@@ -2349,6 +2349,7 @@
       </div>
       <button class="btn" id="keyBtn">⚙️ API 키</button>
       <button class="btn" id="saveBtn">💾 저장</button>
+      <button class="btn" id="loadJsonBtn" title="JSON 파일에서 일정 전체를 불러옵니다">📂 JSON 불러오기</button>
       <button class="btn" id="printBtn">🖨️ 프린트</button>
       <button class="btn" id="deleteModeBtn" title="일정 일괄 삭제 모드">🗑️</button>
       <button class="btn" id="refreshBtn" title="최신 버전으로 새로고침 (캐시 비우기)">🔄</button>
@@ -10226,6 +10227,38 @@ document.getElementById('importJsonBtn').addEventListener('click', () => {
   document.getElementById('jsonFileInput').click();
 });
 
+// Toolbar shortcut — same flow, but accessible without opening 저장 modal.
+document.getElementById('loadJsonBtn').addEventListener('click', () => {
+  document.getElementById('jsonFileInput').click();
+});
+
+// Fill in any missing fields so a hand-written / partial JSON still renders.
+function normalizeImportedCities(rawCities) {
+  return rawCities.map((c, idx) => {
+    const city = { ...c };
+    if (!city.id) city.id = 'city_' + Math.random().toString(36).slice(2, 8);
+    if (typeof city.order !== 'number') city.order = idx + 1;
+    if (!city.type) city.type = 'base';
+    if (!city.name) city.name = city.ko || `City ${idx + 1}`;
+    if (!Array.isArray(city.days)) city.days = [];
+    city.days = city.days.map((d, di) => {
+      const day = { ...d };
+      if (typeof day.dayNum !== 'number') day.dayNum = di + 1;
+      if (!day.title) day.title = `Day ${day.dayNum}`;
+      if (!Array.isArray(day.items)) day.items = [];
+      day.items = day.items.map(it => {
+        const item = { ...it };
+        if (!item.id) item.id = 'item_' + Math.random().toString(36).slice(2, 8);
+        if (!item.category) item.category = 'tour';
+        if (typeof item.duration !== 'number') item.duration = 60;
+        return item;
+      });
+      return day;
+    });
+    return city;
+  });
+}
+
 document.getElementById('jsonFileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -10234,17 +10267,22 @@ document.getElementById('jsonFileInput').addEventListener('change', (e) => {
     try {
       const data = JSON.parse(ev.target.result);
       if (!data || !Array.isArray(data.cities)) {
-        throw new Error('유효한 일정 JSON 파일이 아닙니다');
+        throw new Error('유효한 일정 JSON 파일이 아닙니다 (cities 배열이 없음)');
       }
-      if (!confirm(`"${file.name}"을(를) 불러올까요?\n현재 일정이 대체됩니다 (총 ${data.cities.length}개 도시).`)) return;
-      cities = data.cities;
+      if (data.cities.length === 0) {
+        throw new Error('cities 배열이 비어 있습니다');
+      }
+      const normalized = normalizeImportedCities(data.cities);
+      if (!confirm(`"${file.name}"을(를) 불러올까요?\n현재 일정이 대체됩니다 (총 ${normalized.length}개 도시).`)) return;
+      cities = normalized;
       selectedId = null;
+      ensureAllDayDefaults();
       persist();
       if (currentView === 'city') exitToOverview();
       renderAll();
       fitToBounds();
       document.getElementById('saveModal').classList.remove('open');
-      setStatus(`✅ "${file.name}"을(를) 불러왔습니다.`);
+      setStatus(`✅ "${file.name}"을(를) 불러왔습니다 (${normalized.length}개 도시).`);
     } catch (err) {
       alert('JSON 파일 불러오기 실패: ' + err.message);
     }
