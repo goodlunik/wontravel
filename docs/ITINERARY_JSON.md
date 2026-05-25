@@ -139,7 +139,7 @@
 |---|---|---|---|
 | `id` | string | ✕ | 고유 ID. 없으면 자동 생성. |
 | `name` | string | ✅ | 표시 이름. |
-| `category` | `"tour" \| "hotel" \| "food" \| "airport"` | ✅ | `tour`=🎫관광지, `hotel`=🏨숙소, `food`=🍽️식당, `airport`=✈️공항. 누락 시 `tour`로 처리. |
+| `category` | `"tour" \| "mytour" \| "hotel" \| "food" \| "airport"` | ✅ | `tour`=🎫관광지, `mytour`=🧭마이리얼트립 투어, `hotel`=🏨숙소, `food`=🍽️식당, `airport`=✈️공항. 누락 시 `tour`로 처리. |
 | `lat`, `lng` | number | ⭐ 권장 | 지도 표시 좌표. 없으면 지도에 점이 안 찍힘. |
 | `address` | string | ✕ | 주소. |
 | `rating` | number | ✕ | 별점 (0~5). |
@@ -162,6 +162,34 @@
 - `duration`: 분 단위
 - `manual`: `true`면 사용자가 직접 지정 → 자동 재계산 대상에서 제외
 - `pending`: `true`면 "AI가 추천 중..." 상태 (보통 직접 작성할 필요 없음)
+
+### A-1) 마이리얼트립 투어 (`category: "mytour"`)
+
+장소형 아이템의 변형. 다음 추가 필드를 사용합니다.
+
+```json
+{
+  "id": "mytour_rome_colosseo",
+  "name": "로마 콜로세움 입장권 + 한국어 가이드 투어",
+  "category": "mytour",
+  "cityLabel": "로마",
+  "mytripUrl": "https://experiences.myrealtrip.com/products/3440846",
+  "lat": 41.8902,
+  "lng": 12.4922,
+  "startTime": "09:00",
+  "duration": 180,
+  "description": "마이리얼트립 예약 투어"
+}
+```
+
+| 필드 | 비고 |
+|---|---|
+| `category` | 반드시 `"mytour"` |
+| `mytripUrl` | **마이리얼트립 상품 URL** (`https://experiences.myrealtrip.com/products/...`). 우측 사이드패널에서 이 URL의 Open Graph 메타·이미지·JSON-LD를 가져와 미리보기로 표시합니다. |
+| `cityLabel` | 도시 표시명 (예: "로마") |
+| 기타 (`lat`, `lng`, `duration`, `startTime`, `description`) | 일반 장소형과 동일 |
+
+> 우측 패널 미리보기는 CORS 프록시(`corsproxy.io` → `allorigins.win`)를 통해 페이지 HTML을 가져와 클라이언트에서 파싱합니다. 프록시가 일시적으로 차단될 경우 미리보기는 실패하지만 일정 등록과 링크 열람은 그대로 동작합니다.
 
 ### B) 교통형 아이템 (transit)
 
@@ -281,7 +309,7 @@
 
 ## 자주 쓰는 카테고리/모드 값 요약
 
-**`category`**: `tour` | `hotel` | `food` | `airport` | `transit`
+**`category`**: `tour` | `mytour` | `hotel` | `food` | `airport` | `transit`
 
 **`mode` / `transitMode`**: `walk` | `metro` | `bus` | `taxi` | `train` | `flight` | `car` | `ferry`
 
