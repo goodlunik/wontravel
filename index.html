@@ -141,10 +141,49 @@
   /* CITY LIST */
   .city-list { padding: 2px 6px 8px; }
   .city-row {
-    display: grid; grid-template-columns: 24px 1fr auto;
+    display: grid; grid-template-columns: 14px 24px 1fr auto;
     align-items: center; gap: 8px;
     padding: 6px 8px; border-radius: 4px;
     cursor: pointer; user-select: none; transition: background 0.1s;
+  }
+  .city-drag-handle {
+    color: var(--text-mute);
+    font-size: 14px;
+    line-height: 1;
+    cursor: grab;
+    text-align: center;
+    user-select: none;
+    opacity: 0.55;
+    transition: opacity 0.1s, color 0.1s;
+    touch-action: none;
+  }
+  .city-row:hover .city-drag-handle { opacity: 1; }
+  .city-drag-handle:hover { color: var(--text); }
+  .city-drag-handle:active { cursor: grabbing; }
+  .city-row.nested .city-drag-handle { visibility: hidden; }
+  .city-nights-stepper {
+    display: inline-flex; align-items: center; gap: 2px;
+    margin-left: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 1px;
+    opacity: 0.85;
+  }
+  .city-nights-stepper:hover { opacity: 1; border-color: var(--border-strong); }
+  .city-nights-stepper button {
+    width: 16px; height: 16px;
+    border: none; background: transparent;
+    color: var(--text-soft);
+    font-size: 12px; line-height: 1;
+    cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 2px;
+  }
+  .city-nights-stepper button:hover { background: var(--bg-hover); color: var(--text); }
+  .city-nights-stepper .val {
+    font-size: 11px; font-weight: 600; color: var(--text);
+    min-width: 14px; text-align: center;
   }
   .city-row:hover { background: var(--bg-hover); }
   .city-row.active { background: var(--accent-soft); }
@@ -4488,12 +4527,22 @@ function renderOverviewLeft() {
   // Render a city row — supports both base and nested day-trip styling
   const renderCityRow = (city, opts = {}) => {
     const isNested = !!opts.nested;
+    const editableNights = !isNested && isBaseLikeType(city.type);
+    const n = getCityNightsInt(city);
+    const metaLeft = `${city.day || ''} · ${city.nights || ''}`.replace(/^ · /, '');
+    const stepper = editableNights ? `
+      <span class="city-nights-stepper" data-action="stepper" title="숙박일수 조정">
+        <button data-action="nights-dec" title="-1박">−</button>
+        <span class="val">${n}박</span>
+        <button data-action="nights-inc" title="+1박">+</button>
+      </span>` : '';
     return `
       <div class="city-row ${isNested ? 'nested' : ''} ${city.id === selectedId ? 'active' : ''}" data-id="${city.id}">
+        <div class="city-drag-handle" data-action="drag" title="드래그하여 순서 변경">⋮⋮</div>
         <div class="city-num ${city.type}">${city.order}</div>
         <div class="city-info">
           <div class="city-name">${city.emoji || ''} ${city.name} <span class="ko">${city.ko}</span></div>
-          <div class="city-meta">${city.day || ''} · ${city.nights}</div>
+          <div class="city-meta">${metaLeft}${stepper}</div>
         </div>
         <div class="city-actions">
           <button class="icon-btn" data-action="enter" title="도시 상세">→</button>
@@ -4621,9 +4670,15 @@ function renderOverviewLeft() {
       const c = cities.find(x => x.id === id);
       if (confirm(`${c.name}을(를) 삭제할까요?`)) deleteCity(id);
     });
+    const dec = row.querySelector('[data-action="nights-dec"]');
+    const inc = row.querySelector('[data-action="nights-inc"]');
+    if (dec) dec.addEventListener('click', (e) => { e.stopPropagation(); changeCityNights(id, -1); });
+    if (inc) inc.addEventListener('click', (e) => { e.stopPropagation(); changeCityNights(id, +1); });
   });
 
-  // Long-press to reorder cities (works on mouse + touch via Pointer Events)
+  // Instant-drag via the ⋮⋮ handle (no long-press wait)
+  bindCityHandleDragReorder(left);
+  // Long-press anywhere on the row still works (touch-friendly fallback)
   bindCityRowLongPressReorder(left);
 
   // Bind transit "자세히" button clicks only — segment body itself is no longer interactive
@@ -5297,6 +5352,142 @@ function moveCityOrder(fromId, toId, before) {
   renderOverviewLeft();
   // Refill any transit that was just cleared (or never set) with train via GPT
   autoFillMissingTransits();
+}
+
+// Extract integer nights from "4박" / "3박 · 출국" / "당일치기" etc.
+function getCityNightsInt(city) {
+  if (!city) return 0;
+  if (city.type === 'day') return 0;
+  const m = (city.nights || '').match(/\d+/);
+  if (m) return parseInt(m[0], 10);
+  return Array.isArray(city.days) ? Math.max(1, city.days.length - 1) : 1;
+}
+
+// Update city.nights string while preserving any trailing suffix like " · 출국"
+function setCityNightsString(city, n) {
+  const old = city.nights || '';
+  const suffixMatch = old.match(/\d+\s*박\s*(.*)$/);
+  const suffix = suffixMatch && suffixMatch[1] ? ` ${suffixMatch[1]}` : '';
+  city.nights = `${n}박${suffix}`;
+}
+
+// Refresh city.day label ("Day X~Y") from the actual days array titles
+function refreshCityDayLabel(city) {
+  if (!Array.isArray(city.days) || city.days.length === 0) {
+    city.day = '';
+    return;
+  }
+  const nums = city.days.map((d, i) => {
+    const m = (d.title || '').match(/Day\s*(\d+)/i);
+    return m ? parseInt(m[1], 10) : (d.dayNum || (i + 1));
+  });
+  const first = nums[0];
+  const last = nums[nums.length - 1];
+  city.day = first === last ? `Day ${first}` : `Day ${first}~${last}`;
+}
+
+// Add or remove a night from a base/alpine city
+function changeCityNights(cityId, delta) {
+  const city = cities.find(c => c.id === cityId);
+  if (!city) return;
+  if (!isBaseLikeType(city.type)) {
+    alert('당일치기 도시는 숙박일수를 변경할 수 없습니다.');
+    return;
+  }
+  if (!Array.isArray(city.days)) city.days = [];
+  const cur = getCityNightsInt(city);
+  const next = cur + delta;
+  if (next < 1) {
+    alert('베이스 도시는 최소 1박이 필요합니다. 완전히 제거하려면 × 버튼을 사용하세요.');
+    return;
+  }
+  if (next > 14) { alert('숙박일수는 최대 14박입니다.'); return; }
+
+  if (delta > 0) {
+    // Append a new empty day. Title uses next sequential global day if extractable.
+    const lastDay = city.days[city.days.length - 1];
+    let nextGlobal = null;
+    if (lastDay) {
+      const m = (lastDay.title || '').match(/Day\s*(\d+)/i);
+      if (m) nextGlobal = parseInt(m[1], 10) + 1;
+    }
+    const dayNum = (city.days.length || 0) + 1;
+    const titleNum = nextGlobal != null ? nextGlobal : dayNum;
+    city.days.push({
+      dayNum,
+      date: '',
+      title: `Day ${titleNum}`,
+      items: []
+    });
+    ensureDayDefaults(city, city.days[city.days.length - 1], city.days.length - 1);
+  } else {
+    // Remove the last day. Confirm if it has user content.
+    if (city.days.length === 0) return;
+    const last = city.days[city.days.length - 1];
+    const hasContent = Array.isArray(last.items) && last.items.some(it => !it.placeholder);
+    if (hasContent && !confirm(`${city.name} 마지막 날(${last.title || ''})에 등록된 일정이 ${last.items.length}개 있습니다. 삭제할까요?`)) return;
+    city.days.pop();
+  }
+
+  setCityNightsString(city, next);
+  refreshCityDayLabel(city);
+  persist();
+  renderOverviewLeft();
+  renderOverviewMarkers();
+}
+
+// Instant drag-reorder via the ⋮⋮ handle (no 500ms long-press wait)
+function bindCityHandleDragReorder(left) {
+  const cleanupHover = () => {
+    document.querySelectorAll('.city-row.drag-over-top, .city-row.drag-over-bottom')
+      .forEach(el => el.classList.remove('drag-over-top', 'drag-over-bottom'));
+  };
+
+  left.querySelectorAll('.city-drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      const row = handle.closest('.city-row');
+      if (!row || row.classList.contains('nested')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const dragId = row.dataset.id;
+      row.classList.add('dragging');
+
+      const onMove = (ev) => {
+        ev.preventDefault();
+        const t = document.elementFromPoint(ev.clientX, ev.clientY);
+        const overRow = t ? t.closest('.city-row') : null;
+        cleanupHover();
+        if (!overRow || overRow === row || overRow.classList.contains('nested')) return;
+        const rect = overRow.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (ev.clientY < mid) overRow.classList.add('drag-over-top');
+        else overRow.classList.add('drag-over-bottom');
+      };
+
+      const onUp = (ev) => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+        const t = document.elementFromPoint(ev.clientX, ev.clientY);
+        const overRow = t ? t.closest('.city-row') : null;
+        row.classList.remove('dragging');
+        cleanupHover();
+        if (overRow && overRow !== row && !overRow.classList.contains('nested')) {
+          const rect = overRow.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          const before = ev.clientY < mid;
+          moveCityOrder(dragId, overRow.dataset.id, before);
+        }
+      };
+
+      document.addEventListener('pointermove', onMove, { passive: false });
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
+    });
+    // Prevent the click from selecting the row
+    handle.addEventListener('click', (e) => { e.stopPropagation(); });
+  });
 }
 
 function bindCityRowLongPressReorder(left) {
