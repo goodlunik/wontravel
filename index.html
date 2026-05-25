@@ -3126,11 +3126,11 @@ function categoryColor(cat) {
   return '#787774';
 }
 function transitEmoji(mode) {
-  const map = { walk: '🚶', metro: '🚇', bus: '🚌', train: '🚆', car: '🚗', taxi: '🚕', tram: '🚊', boat: '⛴️', cable: '🚡', flight: '✈️' };
+  const map = { walk: '🚶', metro: '🚇', bus: '🚌', train: '🚆', car: '🚗', taxi: '🚕', tram: '🚊', boat: '⛴️', cable: '🚡', flight: '✈️', tour: '🧭' };
   return map[mode] || '🚶';
 }
 function transitLabel(mode) {
-  const map = { walk: '도보', metro: '지하철', bus: '버스', train: '기차', car: '자동차', taxi: '택시', tram: '트램', boat: '수상버스', cable: '케이블카', flight: '비행기' };
+  const map = { walk: '도보', metro: '지하철', bus: '버스', train: '기차', car: '자동차', taxi: '택시', tram: '트램', boat: '수상버스', cable: '케이블카', flight: '비행기', tour: '투어로 이동' };
   return map[mode] || '도보';
 }
 function formatDuration(min) {
@@ -5244,10 +5244,16 @@ async function deleteItemAndRecompute(dayIdx, itemIdx) {
   if (removed && removed.cityPairKey) {
     syncTransitItemToCityPair(removed, city, { removed: true });
   }
+  // If we just removed the last mytour from a day-trip city, drop the "투어로 이동" transit
+  let overviewChanged = false;
+  if (removed && removed.category === 'mytour' && city.type === 'day') {
+    overviewChanged = syncDayTripTourTransits(city);
+  }
   // Wipe and re-init transits for this day
   clearAndInitTransitsForDay(city.days[dayIdx]);
   persist();
   renderCityLeft();
+  if (overviewChanged) renderOverviewLeft();
   renderCityPlacesOnMap();
   // Async re-recommend the affected segments
   refreshDayTransits(city.days[dayIdx]);
@@ -6001,12 +6007,49 @@ function saveTourItem() {
   }
   items.push(newItem);
   recomputeTransitsForDay(city.days[tourAddDayIdx]);
+
+  // If this is a day-trip city, the outbound/return city-to-city transits become "투어로 이동"
+  // (transport is bundled into the tour package).
+  const tourTransitChanged = syncDayTripTourTransits(city);
+
   persist();
   renderCityLeft();
+  renderOverviewLeft();
   renderCityPlacesOnMap();
   document.getElementById('tourAddModal').classList.remove('open');
-  setStatus(`🧭 <strong>${name}</strong> 투어를 추가했습니다.`);
+  setStatus(
+    tourTransitChanged
+      ? `🧭 <strong>${name}</strong> 투어를 추가했습니다. ${city.name} 도시간 이동을 "투어로 이동"으로 변경.`
+      : `🧭 <strong>${name}</strong> 투어를 추가했습니다.`
+  );
   refreshDayTransits(city.days[tourAddDayIdx]);
+}
+
+// Day-trip cities that contain a mytour item should have their round-trip transits
+// labelled as "투어로 이동". When the last mytour is removed, revert to a placeholder so
+// autoFillMissingTransits can re-recommend.
+function syncDayTripTourTransits(city) {
+  if (!city || city.type !== 'day') return false;
+  const hasTour = (city.days || []).some(d => (d.items || []).some(it => it.category === 'mytour'));
+  let changed = false;
+  const tourTransit = { mode: 'tour', duration: 0, note: '투어 패키지에 이동 포함' };
+  if (hasTour) {
+    const sameAsTour = (t) => t && t.mode === 'tour';
+    if (!sameAsTour(city.outboundTransit)) { city.outboundTransit = { ...tourTransit }; changed = true; }
+    if (!sameAsTour(city.returnTransit))   { city.returnTransit   = { ...tourTransit }; changed = true; }
+  } else {
+    // No more tour items → clear so GPT auto-fill can re-recommend a normal mode
+    if (city.outboundTransit && city.outboundTransit.mode === 'tour') { delete city.outboundTransit; changed = true; }
+    if (city.returnTransit && city.returnTransit.mode === 'tour')   { delete city.returnTransit; changed = true; }
+  }
+  return changed;
+}
+
+// On boot / after import, walk all day-trips and ensure tour-transit consistency.
+function ensureAllDayTripTourTransits() {
+  let changed = false;
+  getDayTripCities().forEach(dt => { if (syncDayTripTourTransits(dt)) changed = true; });
+  if (changed) persist();
 }
 
 document.getElementById('tourAddConfirmBtn').addEventListener('click', saveTourItem);
@@ -10839,6 +10882,7 @@ document.getElementById('jsonFileInput').addEventListener('change', (e) => {
       cities = normalized;
       selectedId = null;
       ensureAllDayDefaults();
+      ensureAllDayTripTourTransits();
       persist();
       if (currentView === 'city') exitToOverview();
       renderAll();
@@ -10873,6 +10917,7 @@ function downloadSlotAsJson(slotIdx) {
 // ===== INIT =====
 updateKeyStatus();
 ensureAllDayDefaults();
+ensureAllDayTripTourTransits();
 window.initMap = initMap;
 loadGoogleMaps();
 
