@@ -1175,6 +1175,22 @@ function dayCityList(di){
   if(!out.length){ var c=cityAt(di,0); if(c) out=[c]; }
   return out;
 }
+/* 이동이지만 '장소'로 봐야 하는 것 — 역·공항 도착, 그리고 예매한 교통편 */
+function moveIsPlace(it){
+  if(!it||it.k!=="move") return false;
+  if(tripOf(it)) return true;
+  var r=refRec(it);
+  return !!(r && findIn(D.hubs,r.id));
+}
+/* 그 장소의 이름표 — 기차역 · 공항 … (없으면 이동 수단) */
+function movePlaceName(it){
+  var r=refRec(it), h=r?findIn(D.hubs,r.id):null;
+  if(h) return (HUBTP[h.tp]||HUBTP.train).n;
+  var g=tripOf(it), to=g?tripDest(g):null;
+  var h2=to?findIn(D.hubs,to.id):null;
+  if(h2) return (HUBTP[h2.tp]||HUBTP.train).n;
+  return kindName(it);
+}
 function kindName(it){
   if(it.k==="meal") return (MEALS[it.meal||"s"]||MEALS.s).n;
   if(it.k==="move") return (MODES[itemMode(it)]||MODES.w).n;
@@ -1293,14 +1309,17 @@ function tripSelect(di,ii,it){
 function itemHtml(di,ii,it){
   var IP="days."+di+".items."+ii;
   var nm=itemName(it), u=itemUrl(it), isMove=(it.k==="move"), g=tripOf(it);
+  var asPlace=isMove&&moveIsPlace(it);          /* 역·공항·예매 교통편 = 장소 */
   var thumb=thumbHtml(it);
-  var head='<span class="knm">'+kindName(it)+'</span>';
+  var head='<span class="knm">'+(asPlace?movePlaceName(it):kindName(it))+'</span>';
 
   if(!EDIT){
-    var dur=isMove&&itemDur(it)?'<span class="dur">'+fmtDur(itemDur(it))+'</span>':"";
-    var label=nm?'<span class="nm">'+(isMove?"→ ":"")+esc(nm)+'</span>':"";
+    var dt=isMove?(asPlace?((MODES[itemMode(it)]||MODES.w).n+(itemDur(it)?" "+fmtDur(itemDur(it)):""))
+                          :fmtDur(itemDur(it))):"";
+    var dur=dt?'<span class="dur">'+esc(dt)+'</span>':"";
+    var label=nm?'<span class="nm">'+((isMove&&!asPlace)?"→ ":"")+esc(nm)+'</span>':"";
     var sub=it.dd||(g&&g.fare?g.fare+(g.d?" · "+g.d:""):"");
-    return '<li class="it'+(isMove?" mv":"")+'">'+
+    return '<li class="it'+(isMove&&!asPlace?" mv":"")+'">'+
       '<span class="tm">'+esc(it.t||"")+'</span>'+
       '<span class="tx"><span class="hd">'+head+label+dur+
         (u?'<a class="lnk" href="'+at(u)+'" target="_blank" rel="noopener">열기</a>':"")+'</span>'+
@@ -1330,7 +1349,7 @@ function itemHtml(di,ii,it){
   }else{
     mid='<span class="nm">'+ce(IP+".x",it.x)+'</span>';
   }
-  return '<li class="it'+(isMove?" mv":"")+'">'+
+  return '<li class="it'+(isMove&&!asPlace?" mv":"")+'">'+
     '<span class="tm">'+timeIn+'</span>'+
     '<span class="tx"><span class="hd">'+head+mid+
       '<button class="eb" onclick="mv(\'days.'+di+'.items\','+ii+',-1)">↑</button>'+
@@ -2141,7 +2160,9 @@ function mapBlock(di){
     return '<div class="mapw" hidden><div class="map" data-m="'+di+'" data-c="'+at(cid)+'"></div></div>';
   }).join("");
   /* 오른쪽 끝 — 이동 항목 펼치기 */
-  var d=D.days[di], hasMv=!!(d&&d.items&&d.items.some(function(it){ return it.k==="move"; }));
+  var d=D.days[di], hasMv=!!(d&&d.items&&d.items.some(function(it){
+    return it.k==="move" && !moveIsPlace(it);
+  }));
   var mvb=hasMv?('<button class="mapt mvt'+(MVOPEN[di]?" on":"")+'" onclick="toggleMoves(this,'+di+')">'+
     '<span class="cv">›</span><span class="tt">'+(MVOPEN[di]?"이동 숨기기":"이동 보기")+'</span></button>'):"";
   if(!btn && !mvb) return "";
@@ -2320,7 +2341,14 @@ function bindDays(){
       var di=+d.dataset.di;
       if(d.open){
         OPENDAY=di;
+        /* 다른 날짜를 닫아도 방금 누른 카드가 그 자리에 머물도록 */
+        var sm=d.querySelector("summary");
+        var y0=sm?sm.getBoundingClientRect().top:0;
         ds.forEach(function(o){ if(o!==d) o.open=false; });
+        if(sm){
+          var y1=sm.getBoundingClientRect().top;
+          if(y1!==y0) window.scrollBy(0,y1-y0);
+        }
       }else if(OPENDAY===di) OPENDAY=-1;
     });
   });
