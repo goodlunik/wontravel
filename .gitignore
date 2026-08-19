@@ -6,3 +6,6 @@
 # Editor / OS
 .DS_Store
 Thumbs.db
+
+# Local backup of old version (never deployed)
+_backup/
