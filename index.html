@@ -103,6 +103,7 @@ h2:first-child{margin-top:0}
 
 /* ── 지도 : 1:1 · 스태킹 격리 ── */
 .mapbox{margin:0}
+.maptr{display:flex;flex-wrap:wrap;gap:6px}
 .mapt{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;
       border:1px solid var(--line2);background:var(--card);font-family:var(--f);
       font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer}
@@ -129,6 +130,13 @@ h2:first-child{margin-top:0}
 .leaflet-control-attribution{font-size:9px;line-height:1.5;padding:0 4px;color:var(--t3);
       background:rgba(255,255,255,.72);border-radius:5px 0 0 0}
 .leaflet-control-attribution a{color:var(--t3);text-decoration:none}
+
+/* ── 일정 사진 : 정사각형 ── */
+.thb{flex:0 0 56px;width:56px;aspect-ratio:1/1;border-radius:10px;overflow:hidden;
+     background:var(--hover);border:1px solid var(--line);margin-top:1px}
+.thb img{width:100%;height:100%;object-fit:cover;display:block}
+.thb.no{display:none}
+@media(min-width:600px){.thb{flex:0 0 66px;width:66px}}
 
 /* ── 타임라인 : 행마다 구분선 ── */
 .tl{list-style:none;margin:14px 0 0;padding:0}
@@ -1165,7 +1173,7 @@ function render(){
   renderPlanTop(); renderDays(); renderStays(); renderTrips(); renderTours(); renderSpots();
   renderEats(); renderTodos(); renderInfo(); renderCityAdmin();
   document.body.classList.toggle("edit",EDIT);
-  bindEditable(); bindDrag();
+  bindEditable(); bindDrag(); fillPhotos();
   window.scrollTo(0,y);
 }
 function pk(label,sub,fn,acc){
@@ -1265,6 +1273,7 @@ function tripSelect(di,ii,it){
 function itemHtml(di,ii,it){
   var IP="days."+di+".items."+ii;
   var nm=itemName(it), u=itemUrl(it), isMove=(it.k==="move"), g=tripOf(it);
+  var thumb=thumbHtml(it);
   var head='<span class="knm">'+kindName(it)+'</span>';
 
   if(!EDIT){
@@ -1276,7 +1285,7 @@ function itemHtml(di,ii,it){
       '<span class="tx"><span class="hd">'+head+label+dur+
         (u?'<a class="lnk" href="'+at(u)+'" target="_blank" rel="noopener">열기</a>':"")+'</span>'+
         (sub?'<span class="d">'+esc(sub)+'</span>':"")+
-      '</span></li>';
+      '</span>'+thumb+'</li>';
   }
 
   var timeIn='<input type="'+((it.k==="wake"||it.k==="sleep"||it.k==="meal")?"time":"text")+
@@ -1308,7 +1317,7 @@ function itemHtml(di,ii,it){
       '<button class="eb" onclick="mv(\'days.'+di+'.items\','+ii+',1)">↓</button>'+
       '<button class="eb del" onclick="del(\'days.'+di+'.items\','+ii+',\'이 항목을 삭제할까요?\')">✕</button>'+
     '</span>'+
-    '<span class="d">'+ce(IP+".dd",it.dd,true)+'</span></span></li>';
+    '<span class="d">'+ce(IP+".dd",it.dd,true)+'</span></span>'+thumb+'</li>';
 }
 function gapHtml(di,pos){
   return '<li class="gap"><span class="ln"></span>'+
@@ -1331,8 +1340,7 @@ function renderDays(){
         '<div class="sub">'+ce(P+".sub",d.sub)+'</div></div>'+
       '<div class="chev">›</div></summary>'+
       '<div class="dbody">'+
-        '<div class="mapbox"><button class="mapt" onclick="toggleMap(this)"><span class="cv">›</span><span class="tt">지도 보기</span></button>'+
-          '<div class="mapw" hidden><div class="map" data-m="'+di+'"></div></div></div>'+
+        mapBlock(di)+
         '<ul class="tl">'+rows+'</ul>'+
         '<span class="erow">'+
           '<button class="eb" onclick="cityPick('+di+')">시작 도시</button>'+
@@ -1519,9 +1527,11 @@ var FORMS={
         {k:"from",l:"출발",t:"place"},{k:"to",l:"도착",t:"place"},{k:"dur",l:"소요시간(분)",t:"num"},
         {k:"fare",l:"요금"},{k:"bk",l:"예매 완료",t:"chk"},{k:"u",l:"예매 링크"},{k:"d",l:"메모",t:"area"}],
  tours:[{k:"nm",l:"투어 이름"},{k:"dt",l:"날짜 · 시각"},{k:"cty",l:"도시",t:"city"},
-        {k:"sp",l:"지도 지점",t:"spot"},{k:"u",l:"상품 링크"},{k:"rows",l:"내용 (한 줄에 하나 · 항목 | 내용)",t:"rows"}],
+        {k:"sp",l:"지도 지점",t:"spot"},{k:"img",l:"사진 URL (비우면 자동으로 찾습니다)"},
+        {k:"u",l:"상품 링크"},{k:"rows",l:"내용 (한 줄에 하나 · 항목 | 내용)",t:"rows"}],
  spots:[{k:"n",l:"이름"},{k:"tp",l:"분류",t:"sel",o:"sptp"},{k:"cty",l:"도시",t:"city"},
-        {k:"d",l:"메모",t:"area"},{k:"la",l:"위도",t:"num"},{k:"ln",l:"경도",t:"num"},{k:"u",l:"링크"}],
+        {k:"d",l:"메모",t:"area"},{k:"img",l:"사진 URL (비우면 자동으로 찾습니다)"},
+        {k:"la",l:"위도",t:"num"},{k:"ln",l:"경도",t:"num"},{k:"u",l:"링크"}],
  eats:[{k:"n",l:"식당 이름"},{k:"g",l:"위치 · 특징"},{k:"f",l:"표시 문구"},{k:"fc",l:"표시 색",t:"sel",o:"flag"},
        {k:"cty",l:"도시",t:"city"},{k:"d",l:"메모",t:"area"},{k:"la",l:"위도",t:"num"},{k:"ln",l:"경도",t:"num"},{k:"u",l:"링크"}],
  hubs:[{k:"n",l:"이름"},{k:"tp",l:"종류",t:"sel",o:"hubtp"},{k:"cty",l:"도시",t:"city"},
@@ -1886,18 +1896,141 @@ function finishAdd(id,nm){
   else{ render(); closeSheet(); toast(esc(nm)+" 담았습니다"); }
 }
 
-/* ══════════════════ 지도 ══════════════════ */
+/* ═════════════ 사진 (위키백과 자동 조회 · 캐시) ═════════════ */
+var IMG={}; try{ IMG=JSON.parse(localStorage.getItem("wt_img")||"{}"); }catch(e){ IMG={}; }
+function imgSave(){ try{ localStorage.setItem("wt_img",JSON.stringify(IMG)); }catch(e){} }
+
+/* 사진을 붙일 항목인가 — 관광지 · 투어 */
+function photoOf(it){
+  if(!it||(it.k!=="spot"&&it.k!=="tour")) return null;
+  var r=refRec(it); if(!r) return null;
+  if(it.k==="tour"){
+    var sp=r.sp?findIn(D.spots,r.sp):null;
+    return {id:r.id,img:r.img||(sp&&sp.img)||""};
+  }
+  return {id:r.id,img:r.img||""};
+}
+function thumbHtml(it){
+  var ph=photoOf(it); if(!ph) return "";
+  var u=ph.img||IMG[ph.id]||"";
+  var none=(!u && IMG[ph.id]==="");
+  return '<span class="thb'+(none?" no":"")+'" data-pid="'+at(ph.id)+'">'+
+    (u?'<img src="'+at(u)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="thbFail(this)">':"")+'</span>';
+}
+function thbFail(im){
+  var b=im.parentNode; if(!b) return;
+  b.innerHTML=""; b.classList.add("no");
+}
+function applyPhoto(id,u){
+  document.querySelectorAll('.thb[data-pid="'+id+'"]').forEach(function(b){
+    if(u){ b.classList.remove("no");
+      b.innerHTML='<img src="'+at(u)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="thbFail(this)">';
+    }else{ b.innerHTML=""; b.classList.add("no"); }
+  });
+}
+function wikiUrl(lang,gen){
+  return "https://"+lang+".wikipedia.org/w/api.php?action=query&format=json&origin=*"+
+         "&prop=pageimages%7Ccoordinates&piprop=thumbnail&pithumbsize=480&colimit=50&"+gen;
+}
+/* 좌표를 아는 곳이면, 3km 안에 있는 문서의 사진만 씁니다 (엉뚱한 사진 방지) */
+function pickThumb(js,la,ln){
+  var pg=js&&js.query&&js.query.pages; if(!pg) return "";
+  var list=Object.keys(pg).map(function(k){return pg[k]})
+             .sort(function(a,b){ return (a.index||0)-(b.index||0); });
+  for(var i=0;i<list.length;i++){
+    var p=list[i];
+    if(!p||!p.thumbnail||!p.thumbnail.source) continue;
+    if(la){
+      var c=p.coordinates&&p.coordinates[0]; if(!c) continue;
+      if(distKm({la:la,ln:ln},{la:c.lat,ln:c.lon})>3) continue;
+    }
+    return p.thumbnail.source;
+  }
+  return "";
+}
+function lookupPhoto(id,done){
+  var r=findIn(D.spots,id)||findIn(D.tours,id);
+  if(!r){ IMG[id]=""; imgSave(); applyPhoto(id,""); return done(); }
+  var nm=recName(r), la=+r.la||0, ln=+r.ln||0;
+  if(r.sp){ var sp=findIn(D.spots,r.sp); if(sp){ la=+sp.la||0; ln=+sp.ln||0; } }
+  var q=[];
+  if(nm) q.push(wikiUrl("ko","generator=search&gsrsearch="+encodeURIComponent(nm.normalize?nm.normalize("NFC"):nm)+"&gsrlimit=3"));
+  if(la){ q.push(wikiUrl("en","generator=geosearch&ggscoord="+la+"%7C"+ln+"&ggsradius=500&ggslimit=6"));
+          q.push(wikiUrl("it","generator=geosearch&ggscoord="+la+"%7C"+ln+"&ggsradius=500&ggslimit=6")); }
+  step(0);
+  function step(i){
+    if(i>=q.length){ IMG[id]=""; imgSave(); applyPhoto(id,""); return done(); }
+    fetch(q[i]).then(function(x){ return x.json(); }).then(function(js){
+      var u=pickThumb(js,la,ln);
+      if(u){ IMG[id]=u; imgSave(); applyPhoto(id,u); return done(); }
+      step(i+1);
+    }).catch(function(){ step(i+1); });
+  }
+}
+var PQ=[], PBUSY=false;
+function pNext(){
+  if(PBUSY||!PQ.length) return;
+  PBUSY=true;
+  lookupPhoto(PQ.shift(),function(){ PBUSY=false; setTimeout(pNext,220); });
+}
+function fillPhotos(){
+  document.querySelectorAll(".thb[data-pid]").forEach(function(b){
+    var id=b.dataset.pid;
+    if(b.firstChild) return;
+    if(IMG.hasOwnProperty(id)){
+      if(IMG[id]) applyPhoto(id,IMG[id]); else b.classList.add("no");
+      return;
+    }
+    if(PQ.indexOf(id)<0) PQ.push(id);
+  });
+  pNext();
+}
+
+/* ═════════════════ 지도 ═════════════════ */
+/* 하루의 지도 지점 — 도시까지 붙여서 */
+function dayPts(di){
+  var day=D.days[di], out=[]; if(!day) return out;
+  day.items.forEach(function(it){
+    var p=itemPt(it); if(!p||!p.la) return;
+    var last=out[out.length-1];
+    if(last && last.la===p.la && last.ln===p.ln){ if(it.k!=="move") last.n=p.n; return; }
+    out.push({n:p.n||itemName(it)||kindName(it),la:p.la,ln:p.ln,
+              m:(it.k==="move"?itemMode(it):""),c:itemCity(it)||""});
+  });
+  var c="";
+  out.forEach(function(p){ if(p.c) c=p.c; else p.c=c; });
+  c="";
+  for(var i=out.length-1;i>=0;i--){ if(out[i].c) c=out[i].c; else out[i].c=c; }
+  return out;
+}
+/* 그날 지도를 만들 도시 목록 (등장 순서) */
+function dayMapCities(di){
+  var out=[], ps=dayPts(di);
+  if(!ps.length) return out;
+  ps.forEach(function(p){ if(p.c && out.indexOf(p.c)<0) out.push(p.c); });
+  return out.length?out:[""];
+}
+/* 도시마다 버튼 하나 + 지도 하나 */
+function mapBlock(di){
+  var cs=dayMapCities(di); if(!cs.length) return "";
+  var many=cs.length>1;
+  var btn=cs.map(function(cid){
+    var pre=(many&&cid)?(city(cid).nm+" "):"";
+    return '<button class="mapt" data-nm="'+at(pre)+'" onclick="toggleMap(this)">'+
+      '<span class="cv">›</span><span class="tt">'+esc(pre)+'지도 보기</span></button>';
+  }).join("");
+  var wrap=cs.map(function(cid){
+    return '<div class="mapw" hidden><div class="map" data-m="'+di+'" data-c="'+at(cid)+'"></div></div>';
+  }).join("");
+  return '<div class="mapbox"><div class="maptr">'+btn+'</div>'+wrap+'</div>';
+}
 function buildMap(el){
   if(el.dataset.done) return true;
   if(typeof L==="undefined") return false;
-  var di=+el.dataset.m, day=D.days[di]; if(!day) return;
-  var pts=[];
-  day.items.forEach(function(it){
-    var p=itemPt(it); if(!p||!p.la) return;
-    var last=pts[pts.length-1];
-    if(last && last.la===p.la && last.ln===p.ln){ if(it.k!=="move") last.n=p.n; return; }
-    pts.push({n:p.n||itemName(it)||kindName(it),la:p.la,ln:p.ln,m:(it.k==="move"?itemMode(it):"")});
-  });
+  var di=+el.dataset.m, cty=el.dataset.c||"";
+  if(!D.days[di]) return false;
+  var all=dayPts(di), total=all.length, pts=[];
+  all.forEach(function(p,i){ p.i=i; if(!cty||p.c===cty) pts.push(p); });
   if(pts.length<1) return false;
   el.dataset.done="1";
   var map=L.map(el,{scrollWheelZoom:false});
@@ -1909,19 +2042,19 @@ function buildMap(el){
     var md=pts[i].m, M=MODES[md], w=(!md||md==="w");
     L.polyline([ll[i-1],ll[i]],{color:M?M.c:"#8E8D89",weight:w?3:4.5,opacity:.92,
       dashArray:w?"2,7":null,lineCap:"round"}).addTo(map)
-      .bindPopup("<b>"+i+" &rarr; "+(i+1)+"</b><br>"+esc(pts[i-1].n)+" &rarr; "+esc(pts[i].n)+(M?"<br>"+M.n:""));
+      .bindPopup("<b>"+(pts[i-1].i+1)+" &rarr; "+(pts[i].i+1)+"</b><br>"+esc(pts[i-1].n)+" &rarr; "+esc(pts[i].n)+(M?"<br>"+M.n:""));
   }
-  pts.forEach(function(p,i){
-    var bg=i===0?"#3D7A55":(i===pts.length-1?"#B34A42":"#2F6FA8");
+  pts.forEach(function(p){
+    var bg=p.i===0?"#3D7A55":(p.i===total-1?"#B34A42":"#2F6FA8");
     L.marker([p.la,p.ln],{zIndexOffset:100,icon:L.divIcon({className:"",iconSize:[22,22],iconAnchor:[11,11],
-      html:'<div class="mnum" style="background:'+bg+'">'+(i+1)+'</div>'})}).addTo(map)
-      .bindTooltip('<b>'+(i+1)+'</b> '+esc(p.n),{permanent:true,direction:"right",offset:[12,0],className:"mlbl"})
-      .bindPopup("<b>"+(i+1)+". "+esc(p.n)+"</b>");
+      html:'<div class="mnum" style="background:'+bg+'">'+(p.i+1)+'</div>'})}).addTo(map)
+      .bindTooltip('<b>'+(p.i+1)+'</b> '+esc(p.n),{permanent:true,direction:"right",offset:[12,0],className:"mlbl"})
+      .bindPopup("<b>"+(p.i+1)+". "+esc(p.n)+"</b>");
   });
   var s=document.createElement("div"); s.className="rs";
-  s.innerHTML=pts.map(function(p,i){
-    var c=i===0?"s":(i===pts.length-1?"e":"");
-    return '<span class="ri"><span class="pn '+c+'">'+(i+1)+'</span>'+esc(p.n)+'</span>';
+  s.innerHTML=pts.map(function(p){
+    var c=p.i===0?"s":(p.i===total-1?"e":"");
+    return '<span class="ri"><span class="pn '+c+'">'+(p.i+1)+'</span>'+esc(p.n)+'</span>';
   }).join('<span class="ar">&rsaquo;</span>');
   el.parentNode.appendChild(s);
   if(pts.length>1) map.fitBounds(L.latLngBounds(ll).pad(0.25));
@@ -1933,20 +2066,23 @@ function buildMap(el){
 
 /* 지도 보기 / 접기 */
 function toggleMap(btn){
-  var w=btn.parentNode.querySelector(".mapw"), el=w.querySelector(".map");
-  var tt=btn.querySelector(".tt");
+  var box=btn.closest(".mapbox"); if(!box) return;
+  var idx=[].indexOf.call(btn.parentNode.children,btn);
+  var w=box.querySelectorAll(".mapw")[idx]; if(!w) return;
+  var el=w.querySelector(".map"), tt=btn.querySelector(".tt");
+  var pre=btn.dataset.nm||"";
   if(w.hasAttribute("hidden")){
     w.removeAttribute("hidden");
     if(!buildMap(el)){
       w.setAttribute("hidden","");
-      toast("이 날짜에는 지도에 표시할 장소가 없습니다");
+      toast("표시할 장소가 없습니다");
       return;
     }
     if(el._map) setTimeout(function(){ el._map.invalidateSize(); },30);
-    btn.classList.add("on"); tt.textContent="지도 접기";
+    btn.classList.add("on"); tt.textContent=pre+"지도 접기";
   }else{
     w.setAttribute("hidden","");
-    btn.classList.remove("on"); tt.textContent="지도 보기";
+    btn.classList.remove("on"); tt.textContent=pre+"지도 보기";
   }
 }
 
