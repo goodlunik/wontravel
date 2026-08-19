@@ -133,10 +133,28 @@ h2:first-child{margin-top:0}
 
 /* ── 일정 사진 : 정사각형 ── */
 .thb{flex:0 0 56px;width:56px;aspect-ratio:1/1;border-radius:10px;overflow:hidden;
-     background:var(--hover);border:1px solid var(--line);margin-top:1px}
-.thb img{width:100%;height:100%;object-fit:cover;display:block}
+     background:var(--hover);border:1px solid var(--line);margin-top:1px;cursor:zoom-in}
+.thb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .18s}
+.thb:active img{transform:scale(1.06)}
 .thb.no{display:none}
 @media(min-width:600px){.thb{flex:0 0 66px;width:66px}}
+
+/* ── 사진 갤러리 (팝업) ── */
+.galbig{position:relative;width:100%;aspect-ratio:4/3;border-radius:13px;overflow:hidden;
+        background:#17171A;border:1px solid var(--line);margin-top:4px}
+.galbig img{width:100%;height:100%;object-fit:contain;display:block}
+.galnav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;
+        border:0;background:rgba(20,20,19,.5);color:#fff;font-size:19px;line-height:34px;
+        font-family:var(--f);cursor:pointer;padding:0}
+.galnav:active{background:rgba(20,20,19,.75)}
+.galnav.p{left:8px} .galnav.n{right:8px}
+.galcnt{position:absolute;right:10px;bottom:9px;background:rgba(20,20,19,.62);color:#fff;
+        font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px}
+.galstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px;margin-top:8px}
+.galstrip button{padding:0;border:1px solid var(--line2);background:var(--hover);border-radius:8px;
+                 overflow:hidden;aspect-ratio:1/1;cursor:pointer}
+.galstrip button.on{border-color:var(--blue);box-shadow:0 0 0 2px var(--blueBg)}
+.galstrip img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ── 타임라인 : 행마다 구분선 ── */
 .tl{list-style:none;margin:14px 0 0;padding:0}
@@ -1905,8 +1923,10 @@ function photoOf(it){
   if(!it||(it.k!=="spot"&&it.k!=="tour")) return null;
   var r=refRec(it); if(!r) return null;
   if(it.k==="tour"){
+    /* 투어에 '지도 지점'이 연결돼 있으면 그 관광지의 사진·갤러리를 그대로 씁니다 */
     var sp=r.sp?findIn(D.spots,r.sp):null;
-    return {id:r.id,img:r.img||(sp&&sp.img)||""};
+    if(sp && !r.img) return {id:sp.id,img:sp.img||""};
+    return {id:r.id,img:r.img||""};
   }
   return {id:r.id,img:r.img||""};
 }
@@ -1914,7 +1934,8 @@ function thumbHtml(it){
   var ph=photoOf(it); if(!ph) return "";
   var u=ph.img||IMG[ph.id]||"";
   var none=(!u && IMG[ph.id]==="");
-  return '<span class="thb'+(none?" no":"")+'" data-pid="'+at(ph.id)+'">'+
+  return '<span class="thb'+(none?" no":"")+'" data-pid="'+at(ph.id)+'" title="사진 더 보기" '+
+    'onclick="event.stopPropagation();openGallery(\''+at(ph.id)+'\')">'+
     (u?'<img src="'+at(u)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="thbFail(this)">':"")+'</span>';
 }
 function thbFail(im){
@@ -1967,6 +1988,101 @@ function lookupPhoto(id,done){
     }).catch(function(){ step(i+1); });
   }
 }
+/* ── 사진 갤러리 : 위키미디어 공용에서 그 자리의 사진들을 모아 봅니다 ── */
+var GAL={}, GV={list:[],i:0,nm:""};
+function galRec(id){ return findIn(D.spots,id)||findIn(D.tours,id); }
+function galPt(r){
+  var la=+r.la||0, ln=+r.ln||0;
+  if(r.sp){ var sp=findIn(D.spots,r.sp); if(sp){ la=+sp.la||0; ln=+sp.ln||0; } }
+  return {la:la,ln:ln};
+}
+function commonsUrl(gen){
+  return "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*"+
+         "&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=900&"+gen;
+}
+function commonsGeoUrl(la,ln,rad){
+  return commonsUrl("generator=geosearch&ggsnamespace=6&ggscoord="+la+"%7C"+ln+
+                    "&ggsradius="+rad+"&ggslimit=24");
+}
+function commonsSearchUrl(nm){
+  return commonsUrl("generator=search&gsrnamespace=6&gsrlimit=24&gsrsearch="+
+                    encodeURIComponent(nm.normalize?nm.normalize("NFC"):nm));
+}
+function commonsPick(js){
+  var pg=js&&js.query&&js.query.pages; if(!pg) return [];
+  return Object.keys(pg).map(function(k){ return pg[k]; })
+    .sort(function(a,b){ return (a.index||0)-(b.index||0); })
+    .filter(function(p){
+      var ii=p&&p.imageinfo&&p.imageinfo[0];
+      return !!(ii&&ii.thumburl&&(!ii.mime||/^image\/(jpeg|png|webp)$/.test(ii.mime)));
+    })
+    .map(function(p){
+      var ii=p.imageinfo[0];
+      return {u:ii.thumburl,pg:ii.descriptionurl||""};
+    });
+}
+function openGallery(id){
+  var r=galRec(id); if(!r) return;
+  GV={list:[],i:0,nm:recName(r)};
+  if(GAL[id]){ GV.list=GAL[id]; drawGallery(); return; }
+  openSheet('<h3>'+esc(recName(r))+'</h3>'+
+    '<p class="sm"><span class="spin"></span> &nbsp;사진을 모으는 중…</p>');
+  loadGallery(id,r);
+}
+function loadGallery(id,r){
+  var p=galPt(r), nm=recName(r), out=[], seen={};
+  var lead=r.img||IMG[id]||"";
+  if(lead){ out.push({u:lead,pg:""}); seen[lead]=1; }
+  var q=[];
+  if(p.la){ q.push(commonsGeoUrl(p.la,p.ln,300)); q.push(commonsGeoUrl(p.la,p.ln,900)); }
+  if(nm) q.push(commonsSearchUrl(nm));
+  step(0);
+  function step(i){
+    if(i>=q.length){ finish(); return; }
+    fetch(q[i]).then(function(x){ return x.json(); }).then(function(js){
+      commonsPick(js).forEach(function(o){
+        if(!seen[o.u] && out.length<24){ seen[o.u]=1; out.push(o); }
+      });
+      if(out.length>=8){ finish(); return; }
+      step(i+1);
+    }).catch(function(){ step(i+1); });
+  }
+  function finish(){ GAL[id]=out; GV.list=out; GV.i=0; drawGallery(); }
+}
+function drawGallery(){
+  var L=GV.list;
+  if(!L.length){
+    openSheet('<h3>'+esc(GV.nm)+'</h3><p class="sm">이곳의 사진을 찾지 못했습니다.</p>');
+    return;
+  }
+  var c=L[0];
+  openSheet('<h3>'+esc(GV.nm)+'</h3>'+
+    '<div class="galbig"><img id="galimg" src="'+at(c.u)+'" alt="" referrerpolicy="no-referrer">'+
+      (L.length>1?'<button class="galnav p" onclick="galGo(-1)">‹</button>'+
+                  '<button class="galnav n" onclick="galGo(1)">›</button>':"")+
+      '<span class="galcnt" id="galcnt">1 / '+L.length+'</span></div>'+
+    '<div class="galstrip">'+L.map(function(o,i){
+      return '<button class="'+(i===0?"on":"")+'" onclick="galSet('+i+')">'+
+             '<img src="'+at(o.u)+'" alt="" loading="lazy" referrerpolicy="no-referrer"></button>';
+    }).join("")+'</div>'+
+    '<p class="hint"><a class="lk sm" id="galsrc" href="'+at(c.pg||"#")+'" target="_blank" rel="noopener"'+
+      (c.pg?"":' style="display:none"')+'>이 사진 원본 · 저작자 보기</a><br>사진 출처 — Wikimedia Commons</p>');
+}
+function galSet(i){
+  var L=GV.list; if(!L[i]) return;
+  GV.i=i;
+  var big=document.getElementById("galimg"); if(!big){ drawGallery(); return; }
+  big.src=L[i].u;
+  var cnt=document.getElementById("galcnt"); if(cnt) cnt.textContent=(i+1)+" / "+L.length;
+  var lk=document.getElementById("galsrc");
+  if(lk){ lk.href=L[i].pg||"#"; lk.style.display=L[i].pg?"":"none"; }
+  document.querySelectorAll(".galstrip button").forEach(function(b,j){ b.className=(j===i?"on":""); });
+}
+function galGo(d){
+  var n=GV.list.length; if(!n) return;
+  galSet((GV.i+d+n)%n);
+}
+
 var PQ=[], PBUSY=false;
 function pNext(){
   if(PBUSY||!PQ.length) return;
