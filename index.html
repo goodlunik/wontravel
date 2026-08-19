@@ -103,7 +103,8 @@ h2:first-child{margin-top:0}
 
 /* ── 지도 : 1:1 · 스태킹 격리 ── */
 .mapbox{margin:0}
-.maptr{display:flex;flex-wrap:wrap;gap:6px}
+.maptr{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mapt.mvt{margin-left:auto}
 .mapt{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;
       border:1px solid var(--line2);background:var(--card);font-family:var(--f);
       font-size:12.5px;font-weight:600;color:var(--t2);cursor:pointer}
@@ -158,6 +159,7 @@ h2:first-child{margin-top:0}
 
 /* ── 타임라인 : 행마다 구분선 ── */
 .tl{list-style:none;margin:14px 0 0;padding:0}
+.tl.nomv li.it.mv{display:none}          /* 이동 항목 접기 */
 .tl li.it{display:flex;gap:10px;padding:11px 8px;align-items:flex-start;
           border-bottom:1px solid var(--line)}
 .tl li.it:last-child{border-bottom:none}
@@ -1359,7 +1361,7 @@ function renderDays(){
       '<div class="chev">›</div></summary>'+
       '<div class="dbody">'+
         mapBlock(di)+
-        '<ul class="tl">'+rows+'</ul>'+
+        '<ul class="tl'+(MVOPEN[di]?"":" nomv")+'">'+rows+'</ul>'+
         '<span class="erow">'+
           '<button class="eb" onclick="cityPick('+di+')">시작 도시</button>'+
           '<button class="eb" onclick="sortDay('+di+')">시간순 정렬</button>'+
@@ -2103,6 +2105,7 @@ function fillPhotos(){
 }
 
 /* ═════════════════ 지도 ═════════════════ */
+var MVOPEN={};   /* 날짜별 — 이동 항목을 펼쳐 두었는지 */
 /* 하루의 지도 지점 — 도시까지 붙여서 */
 function dayPts(di){
   var day=D.days[di], out=[]; if(!day) return out;
@@ -2128,8 +2131,7 @@ function dayMapCities(di){
 }
 /* 도시마다 버튼 하나 + 지도 하나 */
 function mapBlock(di){
-  var cs=dayMapCities(di); if(!cs.length) return "";
-  var many=cs.length>1;
+  var cs=dayMapCities(di), many=cs.length>1;
   var btn=cs.map(function(cid){
     var pre=(many&&cid)?(city(cid).nm+" "):"";
     return '<button class="mapt" data-nm="'+at(pre)+'" onclick="toggleMap(this)">'+
@@ -2138,7 +2140,21 @@ function mapBlock(di){
   var wrap=cs.map(function(cid){
     return '<div class="mapw" hidden><div class="map" data-m="'+di+'" data-c="'+at(cid)+'"></div></div>';
   }).join("");
-  return '<div class="mapbox"><div class="maptr">'+btn+'</div>'+wrap+'</div>';
+  /* 오른쪽 끝 — 이동 항목 펼치기 */
+  var d=D.days[di], hasMv=!!(d&&d.items&&d.items.some(function(it){ return it.k==="move"; }));
+  var mvb=hasMv?('<button class="mapt mvt'+(MVOPEN[di]?" on":"")+'" onclick="toggleMoves(this,'+di+')">'+
+    '<span class="cv">›</span><span class="tt">'+(MVOPEN[di]?"이동 숨기기":"이동 보기")+'</span></button>'):"";
+  if(!btn && !mvb) return "";
+  return '<div class="mapbox"><div class="maptr">'+btn+mvb+'</div>'+wrap+'</div>';
+}
+/* 이동 항목 보기 / 숨기기 */
+function toggleMoves(btn,di){
+  var body=btn.closest(".dbody"); if(!body) return;
+  var ul=body.querySelector("ul.tl"); if(!ul) return;
+  var on=!ul.classList.toggle("nomv");
+  MVOPEN[di]=on;
+  btn.classList.toggle("on",on);
+  var tt=btn.querySelector(".tt"); if(tt) tt.textContent=on?"이동 숨기기":"이동 보기";
 }
 function buildMap(el){
   if(el.dataset.done) return true;
