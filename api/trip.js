@@ -9,6 +9,11 @@ import SEED from '../lib/seed.js';
 const PATH = 'trip.json';
 const SEED_AT = 1787184000000;        /* 2026-08-20 내보내기 */
 
+/* Blob 저장소가 프로젝트에 연결돼 있는지 — 없으면 SDK 를 부르지 않습니다 */
+function hasStore(){
+  return !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+}
+
 function json(body, status){
   return new Response(JSON.stringify(body), {
     status: status || 200,
@@ -17,8 +22,9 @@ function json(body, status){
 }
 
 async function readBlob(){
+  if(!hasStore()) return null;
   try{
-    const r = await get(PATH, { access:'private', useCache:false });
+    const r = await get(PATH, { access:'private', useCache:false, abortSignal:AbortSignal.timeout(6000) });
     if(!r || r.statusCode !== 200 || !r.stream) return null;
     const txt = await new Response(r.stream).text();
     const o = JSON.parse(txt);
@@ -38,6 +44,8 @@ export default async function handler(request){
   }
 
   if(request.method === 'PUT' || request.method === 'POST'){
+    if(!hasStore())
+      return json({ ok:false, error:'store', msg:'Blob 저장소가 프로젝트에 연결돼 있지 않습니다' }, 503);
     if(key && request.headers.get('x-edit-key') !== key)
       return json({ ok:false, error:'key' }, 401);
 
@@ -56,7 +64,8 @@ export default async function handler(request){
     try{
       await put(PATH, JSON.stringify({ updatedAt, data:body.data }), {
         access:'private', addRandomSuffix:false, allowOverwrite:true,
-        contentType:'application/json', cacheControlMaxAge:60
+        contentType:'application/json', cacheControlMaxAge:60,
+        abortSignal:AbortSignal.timeout(9000)
       });
     }catch(e){
       return json({ ok:false, error:'store', msg:String(e && e.message || e) }, 500);
