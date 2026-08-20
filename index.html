@@ -2156,7 +2156,7 @@ function mapBlock(di){
   var btn=cs.map(function(cid){
     var pre=(many&&cid)?(city(cid).nm+" "):"";
     return '<button class="mapt" data-nm="'+at(pre)+'" onclick="toggleMap(this)">'+
-      '<span class="cv">›</span><span class="tt">'+esc(pre)+'지도 보기</span></button>';
+      '<span class="cv">›</span><span class="tt">'+esc(pre)+'지도</span></button>';
   }).join("");
   var wrap=cs.map(function(cid){
     return '<div class="mapw" hidden><div class="map" data-m="'+di+'" data-c="'+at(cid)+'"></div></div>';
@@ -2237,7 +2237,7 @@ function toggleMap(btn){
     btn.classList.add("on"); tt.textContent=pre+"지도 접기";
   }else{
     w.setAttribute("hidden","");
-    btn.classList.remove("on"); tt.textContent=pre+"지도 보기";
+    btn.classList.remove("on"); tt.textContent=pre+"지도";
   }
 }
 
