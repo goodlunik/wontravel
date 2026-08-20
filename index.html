@@ -1072,6 +1072,13 @@ function ce(path,val,blk){
 }
 function findIn(arr,id){ for(var i=0;i<(arr||[]).length;i++) if(arr[i].id===id) return arr[i]; return null; }
 function city(id){ return findIn(D.cities,id)||{id:id||"",nm:"미지정",en:"",c:"#5F5E5B",bg:"#F4F3F1"}; }
+/* 구글 지도 — 좌표가 아니라 명칭 + 도시로 검색합니다 */
+function mapQ(nm,ctyId){
+  nm=String(nm||"").trim(); if(!nm) return "";
+  var c=city(ctyId), loc=(c.en||(c.nm!=="미지정"?c.nm:"")||"").trim();
+  var q=nm+(loc&&nm.indexOf(loc)<0?" "+loc:"")+" Italy";
+  return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
+}
 function cityChip(id){ var c=city(id); return '<span class="cchip" style="background:'+c.bg+';color:'+c.c+'">'+esc(c.nm)+'</span>'; }
 function newId(pre){
   var n=1, all=[D.spots,D.eats,D.tours,D.stays,D.cities,D.hubs];
@@ -1145,7 +1152,10 @@ function itemName(it){
 function itemUrl(it){
   var g=tripOf(it); if(g) return g.u||"";
   if(it.k==="free"||it.k==="wake"||it.k==="sleep") return "";
-  var r=refRec(it); return (r&&r.u)?r.u:"";
+  var r=refRec(it); if(!r) return "";
+  /* 좌표·place_id 로 걸린 지도 링크는 이름 검색으로 바꿉니다 */
+  if(r.u && /google\.[^\/]*\/maps/i.test(r.u)) return mapQ(recName(r),r.cty);
+  return r.u||"";
 }
 function itemPt(it){
   var g=tripOf(it);
@@ -1645,7 +1655,7 @@ function renderStays(){
       '<div class="ds">'+esc(s.ds)+'</div>'+
       (used.length?'<div class="ec" style="border:0;padding:0"><div class="used">일정 — '+used.join(", ")+'</div></div>':"")+
       '<div class="links">'+(s.u?'<a class="lk sm" href="'+at(s.u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">숙소 페이지</a>':"")+
-        (s.la?'<a class="lk sm" href="https://www.google.com/maps/search/?api=1&query='+s.la+','+s.ln+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">지도</a>':"")+'</div>'+
+        '<a class="lk sm" href="'+at(mapQ(s.nm,s.cty))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">지도</a></div>'+
       '</div></div>';
   }).join("");
 }
@@ -1721,7 +1731,7 @@ function renderSpots(){
     h+='<h2>'+cityChip(c.id)+esc(c.nm)+'<span class="cnt">'+list.length+'곳</span></h2>';
     h+='<div class="grid">'+list.map(function(s){
       var used=usedIn(s.id);
-      var mu=s.u||(s.la?"https://www.google.com/maps/search/?api=1&query="+s.la+","+s.ln:"");
+      var mu=mapQ(s.n,s.cty);
       return '<div class="ec"'+dgAttr("spots",s.id)+'><div class="n">'+esc(s.n)+'</div>'+
         '<div class="f"><span class="flag n">'+(SPTP[s.tp]||"관광")+'</span>'+
           (s.la?"":'<span class="flag r">좌표 없음</span>')+'</div>'+
@@ -1749,7 +1759,7 @@ function renderEats(){
     h+='<h2>'+cityChip(c.id)+esc(c.nm)+'<span class="cnt">'+list.length+'곳</span></h2>';
     h+='<div class="grid">'+list.map(function(e){
       var used=usedIn(e.id);
-      var mu=e.u||(e.la?"https://www.google.com/maps/search/?api=1&query="+e.la+","+e.ln:"");
+      var mu=mapQ(e.n,e.cty);
       return '<div class="ec"'+dgAttr("eats",e.id)+'><div class="n">'+esc(e.n)+'</div>'+
         '<div class="g">'+esc(e.g)+'</div>'+
         (e.f?'<div class="f"><span class="flag '+(e.fc||"g")+'">'+esc(e.f)+'</span></div>':"")+
@@ -1922,14 +1932,14 @@ function takeRes(i){
   var nm=(r.name||String(r.display_name||"").split(",")[0]||"").trim();
   var ad=String(r.display_name||"").split(",").slice(1,4).join(",").trim();
   var la=parseFloat(r.lat), ln=parseFloat(r.lon);
-  finishAdd(addRec(type,cty,nm,ad,la,ln,"https://www.google.com/maps/search/?api=1&query="+la+","+ln,r),nm);
+  finishAdd(addRec(type,cty,nm,ad,la,ln,"",r),nm);
 }
 function addManual(){
   var n=(document.getElementById("mn").value||"").trim();
   if(!n){ toast("이름을 입력하세요"); return; }
   var type=document.getElementById("stype").value, cty=document.getElementById("scty").value;
   var la=parseFloat(document.getElementById("mla").value)||0, ln=parseFloat(document.getElementById("mln").value)||0;
-  finishAdd(addRec(type,cty,n,"",la,ln,la?("https://www.google.com/maps/search/?api=1&query="+la+","+ln):"",null),n);
+  finishAdd(addRec(type,cty,n,"",la,ln,"",null),n);
 }
 function finishAdd(id,nm){
   var cb=SCB; SCB=null;
