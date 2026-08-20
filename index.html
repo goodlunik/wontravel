@@ -39,6 +39,9 @@ img{max-width:100%}
      border:1px solid var(--line2);background:var(--card);font-family:var(--f);
      font-size:12.5px;font-weight:700;color:var(--t2);cursor:pointer;white-space:nowrap}
 .tgl.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.syn{font-size:11.5px;font-weight:700;color:var(--t3);white-space:nowrap;letter-spacing:-.02em}
+.syn.ok{color:#3D7A55}
+.syn.off{color:#B34A42}
 .icb{width:33px;height:33px;flex:0 0 33px;border-radius:9px;border:1px solid var(--line2);
      background:var(--card);cursor:pointer;font-size:15px;line-height:1;
      display:flex;align-items:center;justify-content:center;font-family:var(--f);color:var(--t2)}
@@ -339,6 +342,7 @@ textarea.si{min-height:72px;resize:vertical;line-height:1.6}
 
 <div class="top"><div class="wrap"><div class="in">
   <div class="tt" id="topTitle">이탈리아 가족여행</div>
+  <span class="syn" id="syn"></span>
   <button class="tgl" id="editBtn">편집</button>
   <button class="icb" id="menuBtn" title="저장·불러오기">⋯</button>
 </div></div></div>
@@ -1030,9 +1034,87 @@ function load(){
   if(HAS_LS){ try{ var s=localStorage.getItem(KEY); if(s){ D=JSON.parse(s); normalize(); return; } }catch(e){} }
   D=JSON.parse(JSON.stringify(DEFAULT)); normalize();
 }
-function save(){
+function saveLocal(){
   if(!HAS_LS) return;
-  try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){ toast("저장 실패 — 용량 초과"); }
+  try{
+    localStorage.setItem(KEY, JSON.stringify(D));
+    localStorage.setItem(KEY+"_at", String(SYNC.at||0));
+  }catch(e){ toast("저장 실패 — 용량 초과"); }
+}
+function save(){ SYNC.at=Date.now(); saveLocal(); syncSoon(); }
+
+/* ══════════════════ 서버 동기화 (Vercel Blob) ══════════════════ */
+var API="/api/trip";
+var SYNC={at:0,base:0,key:"",tmr:null,busy:false,pend:false,warned:false};
+try{
+  SYNC.at=+(localStorage.getItem(KEY+"_at")||0)||0;
+  SYNC.key=localStorage.getItem("wt_key")||"";
+}catch(e){}
+
+function synSet(t,c){
+  var el=document.getElementById("syn"); if(!el) return;
+  el.textContent=t||""; el.className="syn"+(c?" "+c:"");
+}
+function syncSoon(){ clearTimeout(SYNC.tmr); SYNC.tmr=setTimeout(function(){ SYNC.tmr=null; pushServer(); },1200); }
+
+/* 서버 → 이 기기 */
+function pullServer(first){
+  synSet("확인 중…");
+  fetch(API,{cache:"no-store"})
+    .then(function(r){ return r.ok?r.json():null; })
+    .then(function(j){
+      if(!j||!j.ok||!j.data){ synSet(""); return; }
+      var at=+j.updatedAt||0;
+      if(at>SYNC.at){
+        D=j.data; normalize(); SYNC.at=at; SYNC.base=at; saveLocal(); render();
+        synSet("최신","ok");
+        if(!first) toast("다른 기기에서 수정한 내용을 불러왔습니다");
+      }else{
+        SYNC.base=at; synSet("최신","ok");
+      }
+      if(j.warn==="nokey" && !SYNC.warned){ SYNC.warned=true; }
+    })
+    .catch(function(){ synSet("오프라인","off"); });
+}
+
+/* 이 기기 → 서버 */
+function pushServer(force){
+  if(SYNC.busy){ SYNC.pend=true; return; }
+  SYNC.busy=true; synSet("저장 중…");
+  fetch(API,{method:"PUT",headers:{"content-type":"application/json","x-edit-key":SYNC.key},
+             body:JSON.stringify({base:SYNC.base,force:!!force,data:D})})
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return {s:r.status,j:j}; }); })
+    .then(function(o){
+      SYNC.busy=false;
+      if(o.s===200&&o.j.ok){
+        SYNC.at=+o.j.updatedAt||Date.now(); SYNC.base=SYNC.at; saveLocal(); synSet("저장됨","ok");
+      }else if(o.s===401){
+        synSet("비밀번호 필요","off"); askKey();
+      }else if(o.s===409){
+        synSet("충돌","off"); resolveConflict(o.j);
+      }else{
+        synSet("서버 저장 실패","off");
+        if(o.j&&o.j.error==="store") toast("서버 저장소가 아직 연결되지 않았습니다");
+      }
+      if(SYNC.pend){ SYNC.pend=false; pushServer(force); }
+    })
+    .catch(function(){ SYNC.busy=false; SYNC.pend=false; synSet("오프라인 — 이 기기에만 저장","off"); });
+}
+function resolveConflict(j){
+  if(!j||!j.data){ return; }
+  if(confirm("다른 기기에서 먼저 수정했습니다."+"\n\n"+"확인 — 그 내용을 가져옵니다 (지금 내 변경은 사라집니다)"+"\n"+"취소 — 내 내용으로 덮어씁니다")){
+    D=j.data; normalize(); SYNC.at=+j.updatedAt||0; SYNC.base=SYNC.at; saveLocal(); render();
+    synSet("최신","ok"); toast("서버 내용을 가져왔습니다");
+  }else{
+    SYNC.base=+j.updatedAt||0; pushServer(true);
+  }
+}
+function askKey(){
+  var k=prompt("편집 비밀번호 (서버 저장용)", SYNC.key||"");
+  if(k===null) return;
+  SYNC.key=k.trim();
+  try{ localStorage.setItem("wt_key",SYNC.key); }catch(e){}
+  pushServer();
 }
 function normalize(){
   ["cities","hubs","trips","planTop","days","spots","stays","tours","eats","todos","info"].forEach(function(k){ if(!D[k]) D[k]=[]; });
@@ -2406,20 +2488,40 @@ function importJSON(inp){
   r.readAsText(f);
 }
 function resetAll(){
-  if(!confirm("모든 편집 내용을 지우고 기본 일정으로 되돌릴까요?")) return;
-  D=JSON.parse(JSON.stringify(DEFAULT)); normalize(); save(); render(); closeSheet(); toast("초기화했습니다");
+  if(!confirm("이 기기에서 고친 내용을 버리고 서버의 최신본으로 되돌릴까요?")) return;
+  SYNC.at=0; SYNC.base=0; closeSheet();
+  var fallback=function(msg){
+    D=JSON.parse(JSON.stringify(DEFAULT)); normalize(); saveLocal(); render(); toast(msg);
+  };
+  fetch(API,{cache:"no-store"})
+    .then(function(r){ return r.ok?r.json():null; })
+    .then(function(j){
+      if(j&&j.ok&&j.data){
+        D=j.data; normalize(); SYNC.at=+j.updatedAt||0; SYNC.base=SYNC.at;
+        saveLocal(); render(); toast("서버 최신본으로 되돌렸습니다");
+      }else fallback("기본 일정으로 되돌렸습니다");
+    })
+    .catch(function(){ fallback("서버에 연결하지 못해 기본 일정으로 되돌렸습니다"); });
 }
 document.getElementById("menuBtn").addEventListener("click",function(){
   var warn=HAS_LS?'<div class="co g"><span class="c">이 브라우저에 <b>자동 저장</b>됩니다.</span></div>'
     :'<div class="co r"><span class="c"><b>이 환경에서는 자동 저장이 막혀 있습니다.</b><br>파일을 내려받아 브라우저에서 열면 자동 저장됩니다.</span></div>';
-  openSheet('<h3>저장 · 불러오기</h3><p class="sm">'+esc(D.meta.sub)+'</p>'+warn+
+  var srv='<div class="co '+(SYNC.base?"b":"a")+'"><span class="c"><b>서버 동기화</b><br>'+
+    (SYNC.base?("마지막 서버 저장 — "+new Date(SYNC.base).toLocaleString("ko-KR")):"아직 서버에 저장된 적이 없습니다")+
+    (SYNC.warned?"<br>편집 비밀번호(EDIT_KEY)가 설정돼 있지 않습니다":"")+
+    '</span></div>'+
+    '<div class="links" style="flex-direction:column">'+
+    '<button class="lk" style="width:100%;justify-content:center" onclick="pullServer()">서버에서 다시 불러오기</button>'+
+    '<button class="lk" style="width:100%;justify-content:center" onclick="askKey()">편집 비밀번호 입력</button>'+
+    '</div>';
+  openSheet('<h3>저장 · 불러오기</h3><p class="sm">'+esc(D.meta.sub)+'</p>'+warn+srv+
     '<div class="co b"><span class="c"><b>담긴 것</b><br>날짜 '+D.days.length+'일 · 도시 '+D.cities.length+
       '곳 · 관광지 '+D.spots.length+'곳 · 교통 거점 '+D.hubs.length+'곳 · 교통편 '+D.trips.length+'건 · 식당 '+D.eats.length+'곳 · 투어 '+D.tours.length+'개</span></div>'+
     '<div class="links" style="flex-direction:column">'+
     '<button class="lk f" style="width:100%;justify-content:center" onclick="exportJSON()">JSON 내보내기</button>'+
     '<label class="lk" style="width:100%;justify-content:center;cursor:pointer">JSON 불러오기'+
       '<input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this)"></label>'+
-    '<button class="lk" style="width:100%;justify-content:center;color:var(--red)" onclick="resetAll()">기본 일정으로 초기화</button>'+
+    '<button class="lk" style="width:100%;justify-content:center;color:var(--red)" onclick="resetAll()">서버 최신본으로 되돌리기</button>'+
     '</div>'+
     '<div class="co b"><span class="c"><b>쓰는 법</b><br>'+
     '• 보기 모드에서는 아무것도 바뀌지 않습니다 — 고치려면 오른쪽 위 <b>편집</b><br>'+
@@ -2432,6 +2534,7 @@ document.getElementById("mask").addEventListener("click",function(e){ if(e.targe
 
 document.getElementById("editBtn").addEventListener("click",function(){
   EDIT=!EDIT;
+  if(EDIT && !SYNC.key) askKeyOnce();
   this.classList.toggle("on",EDIT);
   this.textContent=EDIT?"완료":"편집";
   render();
@@ -2459,7 +2562,23 @@ document.querySelectorAll(".subnav button").forEach(function(b){
   });
 });
 
-load(); render();
+function askKeyOnce(){
+  if(SYNC.asked) return; SYNC.asked=true;
+  var k=prompt("편집 비밀번호 (서버 저장용 · 없으면 비워 두세요)","");
+  if(k===null) return;
+  SYNC.key=k.trim();
+  try{ localStorage.setItem("wt_key",SYNC.key); }catch(e){}
+}
+
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){
+    if(SYNC.tmr){ clearTimeout(SYNC.tmr); SYNC.tmr=null; pushServer(); }
+  }else if(!EDIT && !SYNC.tmr && !SYNC.busy){
+    pullServer();
+  }
+});
+
+load(); render(); pullServer(1);
 </script>
 </body>
 </html>

@@ -9,3 +9,7 @@ Thumbs.db
 
 # Local backup of old version (never deployed)
 _backup/
+
+# Node (Vercel Functions)
+node_modules/
+.vercel/
