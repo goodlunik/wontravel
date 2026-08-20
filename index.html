@@ -199,6 +199,8 @@ h2:first-child{margin-top:0}
 .gap{display:none;align-items:center;gap:6px;height:19px}
 .edit .gap{display:flex}
 .gap .ln{flex:1;display:block;height:1px;background:var(--line)}
+/* 이동 항목이 접혀 있으면 그 앞의 ＋ 줄도 같이 감춘다 — 선·＋ 가 두 번 겹치지 않도록 */
+.tl.nomv li.gap:has(+ li.it.mv){display:none}
 .gapb{flex:0 0 auto;width:20px;height:20px;border-radius:50%;border:1px dashed var(--line2);
   background:var(--card);color:var(--t3);font-family:var(--f);font-size:11px;line-height:1;
   cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
@@ -1167,8 +1169,20 @@ function newId(pre){
   while(all.some(function(a){return findIn(a,pre+n)})) n++;
   return pre+n;
 }
+function hiddenMoveRow(it){ return it && it.k==="move" && !moveIsPlace(it); }
 function mv(arrPath,i,dir){
   var a=getPath(arrPath), j=i+dir;
+  var dm=/^days\.(\d+)\.items$/.exec(arrPath);
+  if(dm){
+    var di=+dm[1];
+    /* 접어 둔 이동 행은 건너뛴다 — 눌러도 안 움직이는 것처럼 보이지 않게 */
+    if(!MVOPEN[di]) while(j>=0 && j<a.length && hiddenMoveRow(a[j])) j+=dir;
+    if(j<0||j>=a.length) return;
+    var ts=a.map(function(o){ return o.t; });   /* 시각은 자리에 그대로 남긴다 */
+    a.splice(j,0,a.splice(i,1)[0]);
+    a.forEach(function(o,k){ o.t=ts[k]; });     /* 순서를 바꾸면 시간도 그에 맞춰 바뀜 */
+    save(); render(); return;
+  }
   if(j<0||j>=a.length) return;
   var t=a[i]; a[i]=a[j]; a[j]=t; save(); render();
 }
@@ -2534,7 +2548,6 @@ document.getElementById("mask").addEventListener("click",function(e){ if(e.targe
 
 document.getElementById("editBtn").addEventListener("click",function(){
   EDIT=!EDIT;
-  if(EDIT && !SYNC.key) askKeyOnce();
   this.classList.toggle("on",EDIT);
   this.textContent=EDIT?"완료":"편집";
   render();
@@ -2561,14 +2574,6 @@ document.querySelectorAll(".subnav button").forEach(function(b){
     window.scrollTo(0,0);
   });
 });
-
-function askKeyOnce(){
-  if(SYNC.asked) return; SYNC.asked=true;
-  var k=prompt("편집 비밀번호 (서버 저장용 · 없으면 비워 두세요)","");
-  if(k===null) return;
-  SYNC.key=k.trim();
-  try{ localStorage.setItem("wt_key",SYNC.key); }catch(e){}
-}
 
 document.addEventListener("visibilitychange",function(){
   if(document.hidden){
