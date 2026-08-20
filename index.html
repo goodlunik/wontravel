@@ -338,6 +338,42 @@ textarea.si{min-height:72px;resize:vertical;line-height:1.6}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line2);
       border-top-color:var(--ink);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
+
+/* ══════════ 인쇄 (A4 · 2단 · 최소 장수) ══════════ */
+#prn{display:none}
+@media print{
+  @page{size:A4 portrait;margin:8mm 7mm}
+  html,body{background:#fff}
+  body>*{display:none!important}
+  body>#prn{display:block!important}
+  #prn{font-family:var(--f);color:#000;font-size:7.5pt;line-height:1.28;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #prn .phd{border-bottom:1.2pt solid #000;padding-bottom:1.4mm;margin-bottom:2mm;
+       display:flex;align-items:baseline;gap:3mm}
+  #prn .phd b{font-size:12pt;letter-spacing:-.02em}
+  #prn .phd span{font-size:7.5pt;color:#444}
+  #prn .pcols{columns:2;column-gap:5mm}
+  #prn .pday{break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;
+       margin:0 0 2.2mm;border:.4pt solid #bbb;border-radius:1mm;overflow:hidden}
+  #prn .pday>.h{background:#e8e8e6;padding:.7mm 1.4mm;border-bottom:.4pt solid #bbb;
+       font-size:7.8pt;font-weight:800;letter-spacing:-.02em}
+  #prn .pday>.h .dy{font-size:8.4pt}
+  #prn .pday>.h .ct{font-weight:700}
+  #prn .pday>.h .st{font-weight:600;color:#333}
+  #prn table{width:100%;border-collapse:collapse;table-layout:fixed}
+  #prn td{vertical-align:top;padding:.35mm 1.4mm;border-top:.3pt dotted #ccc}
+  #prn tr:first-child td{border-top:0}
+  #prn td.t{width:8.6mm;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums}
+  #prn td.k{width:11mm;white-space:nowrap;color:#555;font-size:6.6pt;padding-top:.55mm}
+  #prn td.n{overflow-wrap:anywhere}
+  #prn td.n b{font-weight:700}
+  #prn .dd{color:#444;font-size:6.8pt}
+  #prn tr.mv td{color:#555}
+  #prn tr.mv td.n{font-size:6.9pt}
+  #prn .pnote{padding:.7mm 1.4mm;border-top:.4pt solid #ddd;font-size:6.8pt;color:#333;background:#fafaf9}
+  #prn .pnote i{font-style:normal;font-weight:800}
+  #prn .pfoot{margin-top:2mm;padding-top:1.2mm;border-top:.4pt solid #ccc;font-size:6.5pt;color:#666}
+}
 </style>
 </head>
 <body>
@@ -346,7 +382,7 @@ textarea.si{min-height:72px;resize:vertical;line-height:1.6}
   <div class="tt" id="topTitle">이탈리아 가족여행</div>
   <span class="syn" id="syn"></span>
   <button class="tgl" id="editBtn">편집</button>
-  <button class="icb" id="menuBtn" title="저장·불러오기">⋯</button>
+  <button class="icb" id="prnBtn" title="인쇄" onclick="printPlan()" aria-label="인쇄"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/></svg></button>
 </div></div></div>
 
 <section data-p="pl" class="on"><div class="wrap">
@@ -408,6 +444,7 @@ textarea.si{min-height:72px;resize:vertical;line-height:1.6}
 <div class="mask" id="mask"><div class="sheet"><div class="grab"></div><div id="sb"></div>
   <button class="cls" onclick="closeSheet()">닫기</button></div></div>
 <div class="toast" id="toast"></div>
+<div id="prn"></div>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -2484,65 +2521,60 @@ function closeSheet(){
   document.getElementById("mask").classList.remove("on");
   document.body.style.overflow="";
 }
-function exportJSON(){
-  var blob=new Blob([JSON.stringify(D,null,2)],{type:"application/json"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="italy-trip-"+new Date().toISOString().slice(0,10)+".json";
-  a.click(); URL.revokeObjectURL(a.href);
-  toast("JSON 파일을 내려받았습니다");
+/* ══════════════════ 인쇄 (A4 · 최소 장수) ══════════════════ */
+function pflat(h){
+  return String(h==null?"":h)
+    .replace(/<\s*(br|\/p|\/div|\/li|\/h[1-6])[^>]*>/gi," ")
+    .replace(/<\s*(div|p|li|ul|ol|h[1-6])[^>]*>/gi," ")
+    .replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim();
 }
-function importJSON(inp){
-  var f=inp.files[0]; if(!f) return;
-  var r=new FileReader();
-  r.onload=function(){
-    try{ D=JSON.parse(r.result); normalize(); save(); render(); closeSheet(); toast("불러왔습니다"); }
-    catch(e){ alert("JSON 형식이 아닙니다."); }
-  };
-  r.readAsText(f);
+function prnDay(d){
+  var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d.dt||""));
+  return m ? (+m[2])+"/"+(+m[3]) : (d.d||"");
 }
-function resetAll(){
-  if(!confirm("이 기기에서 고친 내용을 버리고 서버의 최신본으로 되돌릴까요?")) return;
-  SYNC.at=0; SYNC.base=0; closeSheet();
-  var fallback=function(msg){
-    D=JSON.parse(JSON.stringify(DEFAULT)); normalize(); saveLocal(); render(); toast(msg);
-  };
-  fetch(API,{cache:"no-store"})
-    .then(function(r){ return r.ok?r.json():null; })
-    .then(function(j){
-      if(j&&j.ok&&j.data){
-        D=j.data; normalize(); SYNC.at=+j.updatedAt||0; SYNC.base=SYNC.at;
-        saveLocal(); render(); toast("서버 최신본으로 되돌렸습니다");
-      }else fallback("기본 일정으로 되돌렸습니다");
-    })
-    .catch(function(){ fallback("서버에 연결하지 못해 기본 일정으로 되돌렸습니다"); });
+function prnRow(it){
+  var isMove=(it.k==="move"), asPlace=isMove&&moveIsPlace(it), g=tripOf(it);
+  var nm=pflat(itemName(it)), dd=pflat(it.dd), k=asPlace?movePlaceName(it):kindName(it);
+  var dur=isMove?fmtDur(itemDur(it)):"", main;
+  if(isMove&&!asPlace){
+    main="→ "+(nm||"이동")+(dur?" ("+dur+")":"");
+  }else{
+    main="<b>"+(nm||k)+"</b>"+(dur?' <span class="dd">'+dur+"</span>":"");
+    if(g&&g.fare) dd=g.fare+(g.d?" · "+pflat(g.d):"")+(dd?" · "+dd:"");
+  }
+  return '<tr'+(isMove&&!asPlace?' class="mv"':'')+'>'+
+    '<td class="t">'+(it.t||"")+'</td><td class="k">'+(nm?k:"")+'</td>'+
+    '<td class="n">'+main+(dd?' <span class="dd">'+dd+'</span>':'')+'</td></tr>';
 }
-document.getElementById("menuBtn").addEventListener("click",function(){
-  var warn=HAS_LS?'<div class="co g"><span class="c">이 브라우저에 <b>자동 저장</b>됩니다.</span></div>'
-    :'<div class="co r"><span class="c"><b>이 환경에서는 자동 저장이 막혀 있습니다.</b><br>파일을 내려받아 브라우저에서 열면 자동 저장됩니다.</span></div>';
-  var srv='<div class="co '+(SYNC.base?"b":"a")+'"><span class="c"><b>서버 동기화</b><br>'+
-    (SYNC.base?("마지막 서버 저장 — "+new Date(SYNC.base).toLocaleString("ko-KR")):"아직 서버에 저장된 적이 없습니다")+
-    (SYNC.warned?"<br>편집 비밀번호(EDIT_KEY)가 설정돼 있지 않습니다":"")+
-    '</span></div>'+
-    '<div class="links" style="flex-direction:column">'+
-    '<button class="lk" style="width:100%;justify-content:center" onclick="pullServer()">서버에서 다시 불러오기</button>'+
-    '<button class="lk" style="width:100%;justify-content:center" onclick="askKey()">편집 비밀번호 입력</button>'+
-    '</div>';
-  openSheet('<h3>저장 · 불러오기</h3><p class="sm">'+esc(D.meta.sub)+'</p>'+warn+srv+
-    '<div class="co b"><span class="c"><b>담긴 것</b><br>날짜 '+D.days.length+'일 · 도시 '+D.cities.length+
-      '곳 · 관광지 '+D.spots.length+'곳 · 교통 거점 '+D.hubs.length+'곳 · 교통편 '+D.trips.length+'건 · 식당 '+D.eats.length+'곳 · 투어 '+D.tours.length+'개</span></div>'+
-    '<div class="links" style="flex-direction:column">'+
-    '<button class="lk f" style="width:100%;justify-content:center" onclick="exportJSON()">JSON 내보내기</button>'+
-    '<label class="lk" style="width:100%;justify-content:center;cursor:pointer">JSON 불러오기'+
-      '<input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this)"></label>'+
-    '<button class="lk" style="width:100%;justify-content:center;color:var(--red)" onclick="resetAll()">서버 최신본으로 되돌리기</button>'+
-    '</div>'+
-    '<div class="co b"><span class="c"><b>쓰는 법</b><br>'+
-    '• 보기 모드에서는 아무것도 바뀌지 않습니다 — 고치려면 오른쪽 위 <b>편집</b><br>'+
-    '• 편집 중 행 사이의 <b>＋</b> 로 관광지·투어·식당·이동·교통편을 끼워 넣습니다<br>'+
-    '• 목록은 <b>그 시각에 있는 도시</b>의 것만 나옵니다. 도시를 옮기려면 이동을 먼저 넣으세요<br>'+
-    '• 예약·장소 탭의 카드는 <b>꾹 눌러 순서 변경</b>, <b>한 번 눌러 내용 편집</b><br>'+
-    '• 미리 살 기차표는 <b>교통</b> 탭에 등록해 두고 일정에서 골라 넣습니다</span></div>');
+function buildPrint(){
+  var n=0;
+  var days=D.days.map(function(d,di){
+    n+=d.items.length;
+    var cl=dayCityList(di).map(function(c){ return city(c).nm; }).join(" · ");
+    var body=d.items.map(prnRow).join("");
+    var notes=(d.notes||[]).map(function(o){
+      var c=pflat(o.c); if(!c) return "";
+      return '<div class="pnote">'+(o.i?'<i>'+o.i+'</i> ':'')+c+'</div>';
+    }).join("");
+    return '<div class="pday"><div class="h">'+
+      '<span class="dy">D'+(di+1)+' '+prnDay(d)+(d.w?"("+d.w+")":"")+'</span>'+
+      (cl?' · <span class="ct">'+cl+'</span>':"")+
+      (d.ttl?' · <span class="st">'+pflat(d.ttl)+'</span>':"")+
+      (d.sub?' <span class="st">— '+pflat(d.sub)+'</span>':"")+
+      '</div>'+(body?'<table>'+body+'</table>':"")+notes+'</div>';
+  }).join("");
+  return '<div class="phd"><b>'+pflat(D.meta.title)+'</b><span>'+pflat(D.meta.sub)+'</span></div>'+
+    '<div class="pcols">'+days+'</div>'+
+    '<div class="pfoot">'+D.days.length+'일 · 일정 '+n+'개 · 인쇄 '+
+    new Date().toLocaleDateString("ko-KR")+'</div>';
+}
+function printPlan(){
+  var el=document.getElementById("prn");
+  el.innerHTML=buildPrint();
+  setTimeout(function(){ try{ window.print(); }catch(e){ toast("이 브라우저에서는 인쇄를 열 수 없습니다"); } },80);
+}
+window.addEventListener("afterprint",function(){
+  var el=document.getElementById("prn"); if(el) el.innerHTML="";
 });
 document.getElementById("mask").addEventListener("click",function(e){ if(e.target.id==="mask") closeSheet(); });
 
