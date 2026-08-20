@@ -2154,9 +2154,9 @@ function dayMapCities(di){
 function mapBlock(di){
   var cs=dayMapCities(di), many=cs.length>1;
   var btn=cs.map(function(cid){
-    var pre=(many&&cid)?(city(cid).nm+" "):"";
-    return '<button class="mapt" data-nm="'+at(pre)+'" onclick="toggleMap(this)">'+
-      '<span class="cv">›</span><span class="tt">'+esc(pre)+'지도</span></button>';
+    var nm=(many&&cid)?city(cid).nm:"지도";
+    return '<button class="mapt" onclick="toggleMap(this)">'+
+      '<span class="cv">›</span><span class="tt">'+esc(nm)+'</span></button>';
   }).join("");
   var wrap=cs.map(function(cid){
     return '<div class="mapw" hidden><div class="map" data-m="'+di+'" data-c="'+at(cid)+'"></div></div>';
@@ -2166,18 +2166,17 @@ function mapBlock(di){
     return it.k==="move" && !moveIsPlace(it);
   }));
   var mvb=hasMv?('<button class="mapt mvt'+(MVOPEN[di]?" on":"")+'" onclick="toggleMoves(this,'+di+')">'+
-    '<span class="cv">›</span><span class="tt">'+(MVOPEN[di]?"이동 숨기기":"이동 보기")+'</span></button>'):"";
+    '<span class="cv">›</span><span class="tt">이동</span></button>'):"";
   if(!btn && !mvb) return "";
   return '<div class="mapbox"><div class="maptr">'+btn+mvb+'</div>'+wrap+'</div>';
 }
-/* 이동 항목 보기 / 숨기기 */
+/* 이동 항목 펼치기 */
 function toggleMoves(btn,di){
   var body=btn.closest(".dbody"); if(!body) return;
   var ul=body.querySelector("ul.tl"); if(!ul) return;
   var on=!ul.classList.toggle("nomv");
   MVOPEN[di]=on;
   btn.classList.toggle("on",on);
-  var tt=btn.querySelector(".tt"); if(tt) tt.textContent=on?"이동 숨기기":"이동 보기";
 }
 function buildMap(el){
   if(el.dataset.done) return true;
@@ -2219,14 +2218,20 @@ function buildMap(el){
   return true;
 }
 
-/* 지도 보기 / 접기 */
+/* 지도 펼치기 — 한 번에 하나만 */
 function toggleMap(btn){
   var box=btn.closest(".mapbox"); if(!box) return;
   var idx=[].indexOf.call(btn.parentNode.children,btn);
-  var w=box.querySelectorAll(".mapw")[idx]; if(!w) return;
-  var el=w.querySelector(".map"), tt=btn.querySelector(".tt");
-  var pre=btn.dataset.nm||"";
-  if(w.hasAttribute("hidden")){
+  var ws=box.querySelectorAll(".mapw"), w=ws[idx]; if(!w) return;
+  var el=w.querySelector(".map");
+  var open=w.hasAttribute("hidden");
+  /* 같은 날짜의 다른 지도는 모두 접기 */
+  [].forEach.call(ws,function(o,i){
+    if(i===idx) return;
+    o.setAttribute("hidden","");
+    var b=btn.parentNode.children[i]; if(b) b.classList.remove("on");
+  });
+  if(open){
     w.removeAttribute("hidden");
     if(!buildMap(el)){
       w.setAttribute("hidden","");
@@ -2234,10 +2239,10 @@ function toggleMap(btn){
       return;
     }
     if(el._map) setTimeout(function(){ el._map.invalidateSize(); },30);
-    btn.classList.add("on"); tt.textContent=pre+"지도 접기";
+    btn.classList.add("on");
   }else{
     w.setAttribute("hidden","");
-    btn.classList.remove("on"); tt.textContent=pre+"지도";
+    btn.classList.remove("on");
   }
 }
 
