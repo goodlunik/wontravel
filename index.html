@@ -2336,6 +2336,16 @@ function bindEditable(){
     el.addEventListener("click",function(e){ e.stopPropagation(); });
   });
 }
+function scrollDayToTop(d){
+  requestAnimationFrame(function(){
+    var tb=document.querySelector(".top");
+    var h=tb?tb.getBoundingClientRect().height:0;
+    var y=window.pageYOffset+d.getBoundingClientRect().top-h-8;
+    if(y<0) y=0;
+    try{ window.scrollTo({top:y,behavior:"smooth"}); }
+    catch(e){ window.scrollTo(0,y); }
+  });
+}
 function bindDays(){
   var ds=document.querySelectorAll("details.day");
   ds.forEach(function(d){
@@ -2343,14 +2353,9 @@ function bindDays(){
       var di=+d.dataset.di;
       if(d.open){
         OPENDAY=di;
-        /* 다른 날짜를 닫아도 방금 누른 카드가 그 자리에 머물도록 */
-        var sm=d.querySelector("summary");
-        var y0=sm?sm.getBoundingClientRect().top:0;
         ds.forEach(function(o){ if(o!==d) o.open=false; });
-        if(sm){
-          var y1=sm.getBoundingClientRect().top;
-          if(y1!==y0) window.scrollBy(0,y1-y0);
-        }
+        /* 열린 카드를 상단(고정 헤더 바로 아래)으로 올림 */
+        scrollDayToTop(d);
       }else if(OPENDAY===di) OPENDAY=-1;
     });
   });
