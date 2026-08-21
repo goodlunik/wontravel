@@ -2782,22 +2782,28 @@ function aiPreview(di,out){
   }).join("");
   var sum=[]; if(n.ad)sum.push("추가 "+n.ad); if(n.ch)sum.push("변경 "+n.ch);
   if(n.rm)sum.push("빠짐 "+n.rm); if(nt)sum.push("시각 "+nt);
+  /* 제목·부제가 바뀌면 그것도 눈에 보이게 */
+  var d0=D.days[di], t1=aiTxt(c.raw.ttl,40), s1=aiTxt(c.raw.sub,120), meta="";
+  var mrow=function(lb,a,b){
+    return '<div class="r ch"><span class="mk">~</span><span class="tm">'+lb+'</span>'+
+      '<span class="nm"><s>'+at(a||"(없음)")+'</s> → '+at(b)+'</span></div>';
+  };
+  if(t1&&t1!==d0.ttl) meta+=mrow("제목",d0.ttl,t1);
+  if(s1&&s1!==d0.sub) meta+=mrow("부제",d0.sub,s1);
+  if(meta) sum.push("제목·부제");
   /* 바뀌는 게 하나도 없으면 적용을 권하지 않습니다 */
   if(!sum.length){
-    var t1=aiTxt(c.raw.ttl,40), s1=aiTxt(c.raw.sub,120);
-    if((!t1||t1===D.days[di].ttl)&&(!s1||s1===D.days[di].sub)){
-      p.innerHTML=
-        '<p class="aimsg">'+at(aiTxt(out.note,400)||"바꿀 것을 찾지 못했습니다.")+'</p>'+
-        '<p class="aimsg">지금 일정에서 <b>바뀌는 것이 없습니다.</b> 무엇을 어떻게 바꿀지 조금 더 구체적으로 적어 주세요 — '+
-        '예) “오후에 미술관 하나 넣어 줘”, “점심 식당을 다른 곳으로”.</p>'+
-        '<div class="airow"><span class="sp"></span>'+
-          '<button class="aibtn" type="button" onclick="aiClose('+di+')">닫기</button>'+
-          '<button class="aibtn go" type="button" style="background:'+kc.c+';color:#fff" onclick="aiForm('+di+')">다시 적기</button>'+
-        '</div>';
-      return;
-    }
-    sum.push("제목만 바뀜");
+    p.innerHTML=
+      '<p class="aimsg">'+at(aiTxt(out.note,400)||"바꿀 것을 찾지 못했습니다.")+'</p>'+
+      '<p class="aimsg">지금 일정에서 <b>바뀌는 것이 없습니다.</b> 무엇을 어떻게 바꿀지 조금 더 구체적으로 적어 주세요 — '+
+      '예) “오후에 미술관 하나 넣어 줘”, “점심 식당을 다른 곳으로”.</p>'+
+      '<div class="airow"><span class="sp"></span>'+
+        '<button class="aibtn" type="button" onclick="aiClose('+di+')">닫기</button>'+
+        '<button class="aibtn go" type="button" style="background:'+kc.c+';color:#fff" onclick="aiForm('+di+')">다시 적기</button>'+
+      '</div>';
+    return;
   }
+  body=meta+body;
   p.innerHTML=
     '<p class="aimsg">'+at(aiTxt(out.note,400)||"이렇게 바꿔 봤습니다.")+'</p>'+
     (c.places.length?'<p class="aimsg">새 장소 '+c.places.length+'곳이 함께 등록됩니다 — '+
