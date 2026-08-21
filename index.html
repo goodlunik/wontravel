@@ -2688,11 +2688,13 @@ function aiClean(di,out){
   var items=[];
   (out.items||[]).forEach(function(o){
     if(!o||typeof o!=="object") return;
-    var k=KINDS[o.k]?o.k:"free", it={k:k,t:"",x:"",dd:""};
+    var k=KINDS[o.k]?o.k:"free", it={k:k,t:""};
     var m=/^(\d{1,2}):(\d{2})$/.exec(String(o.t||"").trim());
     if(m&&+m[1]<24&&+m[2]<60) it.t=("0"+(+m[1])).slice(-2)+":"+m[2];
-    it.dd=aiTxt(o.dd,300);
-    it.x =aiTxt(o.x,120);
+    /* 빈 칸은 아예 만들지 않습니다 — 원래 자료의 모양과 같게 */
+    var dd=aiTxt(o.dd,300), xx=aiTxt(o.x,120);
+    if(dd) it.dd=dd;
+    if(xx) it.x=xx;
     var ref=String(o.ref||"").trim();
     if(ref && k!=="free" && k!=="wake" && k!=="sleep"){
       if(findIn(pool(k),ref)) it.ref=ref;
