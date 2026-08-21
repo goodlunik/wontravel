@@ -138,7 +138,8 @@ h2:first-child{margin-top:0}
 .aidiff{border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
 .aidiff .r{display:flex;gap:7px;align-items:baseline;font-size:12.5px;line-height:1.55;padding:2px 0}
 .aidiff .r .mk{flex:0 0 12px;text-align:center;font-weight:800;font-size:12px;color:var(--t3)}
-.aidiff .r .tm{flex:0 0 38px;color:var(--t3);font-variant-numeric:tabular-nums}
+.aidiff .r .tm{flex:0 0 auto;min-width:38px;color:var(--t3);font-variant-numeric:tabular-nums}
+.aidiff .r .tm s{color:var(--red);opacity:.65;margin-right:3px}
 .aidiff .r .nm{flex:1;min-width:0}
 .aidiff .r .kk{color:var(--t3);font-size:11px;margin-left:4px}
 .aidiff .r.ad{color:var(--green)} .aidiff .r.ad .mk{color:var(--green)}
@@ -2580,7 +2581,7 @@ function aiClose(di){
 function aiForm(di,msg,err){
   var p=aiPanel(di); if(!p) return;
   var kc=city(dayCityList(di)[0]||""); p.dataset.built="1";
-  p.innerHTML=(msg?'<p class="aimsg'+(err?" er":"")+'">'+esc(msg)+'</p>':'')+
+  p.innerHTML=(msg?'<p class="aimsg'+(err?" er":"")+'">'+at(msg)+'</p>':'')+
     '<textarea placeholder="이 날 일정을 어떻게 바꿀까요? — 예) 오후에 보르게세 미술관 넣고 저녁은 트라스테베레에서"></textarea>'+
     '<div class="aichips">'+AICHIP.map(function(c){
       return '<button class="aichip" type="button" onclick="aiChip(this)">'+esc(c)+'</button>'; }).join("")+'</div>'+
@@ -2642,36 +2643,56 @@ function aiRun(di){
   var p=aiPanel(di); if(!p) return;
   var ta=p.querySelector("textarea"), ask=ta?ta.value.trim():"";
   if(!ask){ if(ta) ta.focus(); toast("무엇을 바꿀지 한 줄만 적어 주세요"); return; }
-  AIQ[di]=ask;
-  p.innerHTML='<p class="aimsg"><span class="spin"></span>&nbsp; AI가 '+esc(D.days[di].d)+
-              '일 일정을 짜는 중입니다 — 10~30초 걸립니다</p>';
+  AIQ[di]=ask; aiSend(di,ask,0);
+}
+/* again=1 이면 시간 초과로 한 번 더 부르는 중입니다 (가끔 한 번씩 오래 걸립니다) */
+function aiSend(di,ask,again){
+  var p=aiPanel(di); if(!p) return;
+  p.innerHTML='<p class="aimsg"><span class="spin"></span>&nbsp; '+
+    (again ? "조금 오래 걸려 한 번 더 부르는 중입니다…"
+           : "AI가 "+at(D.days[di].d)+"일 일정을 짜는 중입니다 — 10~30초 걸립니다")+'</p>';
   fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},
                    body:JSON.stringify({ask:ask,ctx:aiCtx(di)})})
     .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){return {s:r.status,j:j};}); })
     .then(function(o){
       var j=o.j||{};
-      if(o.s!==200||!j.ok||!j.out){
-        var m=j.msg||j.error||("오류 "+o.s);
-        if(j.error==="nokey") m="서버에 OPENAI_API_KEY 가 아직 설정되지 않았습니다";
-        aiForm(di,"실패했습니다 — "+m,1); return;
-      }
-      aiPreview(di,j.out);
+      if(o.s===200&&j.ok&&j.out){ aiPreview(di,j.out); return; }
+      /* 시간 초과는 대개 한 번 더 부르면 됩니다 */
+      if(!again && (o.s===504||j.error==="timeout")){ aiSend(di,ask,1); return; }
+      var m=j.msg||j.error||("오류 "+o.s);
+      if(j.error==="nokey") m="서버에 OPENAI_API_KEY 가 아직 설정되지 않았습니다";
+      aiForm(di,"실패했습니다 — "+m,1);
     })
-    .catch(function(){ aiForm(di,"연결에 실패했습니다 — 잠시 뒤 다시 시도해 주세요",1); });
+    .catch(function(){
+      if(!again){ aiSend(di,ask,1); return; }
+      aiForm(di,"연결에 실패했습니다 — 잠시 뒤 다시 시도해 주세요",1);
+    });
+}
+
+/* AI 가 준 글에서 태그를 벗겨 냅니다 — 이 앱의 esc() 는 그대로 통과시키므로 여기서 막습니다 */
+function aiTxt(s,max){
+  s=String(s==null?"":s).replace(/<[^>]*>/g," ").replace(/[\u0000-\u001f]/g," ")
+                        .replace(/\s+/g," ").trim();
+  return max&&s.length>max ? s.slice(0,max) : s;
 }
 
 /* ── 검증 : AI 가 준 것을 이 앱이 읽을 수 있는 모양으로만 통과시킵니다 ── */
 function aiClean(di,out){
   var tmp={}, used={}, warn=[];
-  (out.newPlaces||[]).forEach(function(o){ if(o&&o.tmp&&o.n) tmp[String(o.tmp)]=o; });
+  (out.newPlaces||[]).forEach(function(o){
+    if(!o||!o.tmp) return;
+    var n=aiTxt(o.n,80); if(!n) return;
+    tmp[String(o.tmp)]={tmp:String(o.tmp),kind:o.kind,n:n,cty:String(o.cty||""),
+                        tp:String(o.tp||""),d:aiTxt(o.d,200),la:+o.la||0,ln:+o.ln||0};
+  });
   var items=[];
   (out.items||[]).forEach(function(o){
     if(!o||typeof o!=="object") return;
     var k=KINDS[o.k]?o.k:"free", it={k:k,t:"",x:"",dd:""};
     var m=/^(\d{1,2}):(\d{2})$/.exec(String(o.t||"").trim());
     if(m&&+m[1]<24&&+m[2]<60) it.t=("0"+(+m[1])).slice(-2)+":"+m[2];
-    if(o.dd) it.dd=String(o.dd);
-    if(o.x)  it.x=String(o.x);
+    it.dd=aiTxt(o.dd,300);
+    it.x =aiTxt(o.x,120);
     var ref=String(o.ref||"").trim();
     if(ref && k!=="free" && k!=="wake" && k!=="sleep"){
       if(findIn(pool(k),ref)) it.ref=ref;
@@ -2719,7 +2740,8 @@ function aiDiff(oldA,newA){
     var q=bag[aiKey(it)];
     if(q&&q.length){
       var i=q.shift(); taken[i]=1; var o=oldA[i];
-      rows.push({c:(o.t===it.t&&(o.dd||"")===(it.dd||""))?"eq":"ch",it:it});
+      rows.push({c:(o.t===it.t&&(o.dd||"")===(it.dd||""))?"eq":"ch",it:it,
+                 ot:(o.t!==it.t?(o.t||"--:--"):"")});
     }else rows.push({c:"ad",it:it});
   });
   oldA.forEach(function(it,i){ if(!taken[i]) rows.push({c:"rm",it:it}); });
@@ -2731,24 +2753,25 @@ function aiPreview(di,out){
   var p=aiPanel(di); if(!p) return;
   var c=aiClean(di,out); AIRES[di]=c;
   if(!c.items.length){ aiForm(di,"쓸 만한 일정을 만들지 못했습니다 — 요청을 조금 더 구체적으로 적어 주세요",1); return; }
-  var kc=city(dayCityList(di)[0]||""), MK={eq:"·",ad:"+",ch:"~",rm:"−"}, n={eq:0,ad:0,ch:0,rm:0};
+  var kc=city(dayCityList(di)[0]||""), MK={eq:"·",ad:"+",ch:"~",rm:"−"}, n={eq:0,ad:0,ch:0,rm:0}, nt=0;
   var body=aiDiff(D.days[di].items,c.items).map(function(r){
-    n[r.c]++;
+    n[r.c]++; if(r.ot) nt++;
     var it=r.it, nm=aiNm(it,c.places)||kindName(it);
     return '<div class="r '+r.c+'"><span class="mk">'+MK[r.c]+'</span>'+
-      '<span class="tm">'+esc(it.t||"")+'</span><span class="nm">'+esc(nm)+
-      '<span class="kk">'+esc(kindName(it))+'</span>'+
-      ((r.c!=="rm"&&it.dd)?'<br><span class="kk">'+esc(it.dd)+'</span>':'')+'</span></div>';
+      '<span class="tm">'+(r.ot?'<s>'+at(r.ot)+'</s> ':'')+at(it.t||"")+'</span><span class="nm">'+at(nm)+
+      '<span class="kk">'+at(kindName(it))+'</span>'+
+      ((r.c!=="rm"&&it.dd)?'<br><span class="kk">'+at(it.dd)+'</span>':'')+'</span></div>';
   }).join("");
   var sum=[]; if(n.ad)sum.push("추가 "+n.ad); if(n.ch)sum.push("변경 "+n.ch);
-  if(n.rm)sum.push("빠짐 "+n.rm); if(!sum.length)sum.push("바뀐 것 없음");
+  if(n.rm)sum.push("빠짐 "+n.rm); if(nt)sum.push("시각 "+nt);
+  if(!sum.length)sum.push("바뀐 것 없음");
   p.innerHTML=
-    '<p class="aimsg">'+esc(out.note||"이렇게 바꿔 봤습니다.")+'</p>'+
+    '<p class="aimsg">'+at(aiTxt(out.note,400)||"이렇게 바꿔 봤습니다.")+'</p>'+
     (c.places.length?'<p class="aimsg">새 장소 '+c.places.length+'곳이 함께 등록됩니다 — '+
-       esc(c.places.map(function(o){return o.n}).join(", "))+'</p>':'')+
-    (c.warn.length?'<p class="aimsg er">'+esc(c.warn.join(" · "))+' — 이 항목은 빼고 넣습니다</p>':'')+
+       at(c.places.map(function(o){return o.n}).join(", "))+'</p>':'')+
+    (c.warn.length?'<p class="aimsg er">'+at(c.warn.join(" · "))+' — 이 항목은 빼고 넣습니다</p>':'')+
     '<div class="aidiff">'+body+'</div>'+
-    '<div class="airow"><span class="sp">'+esc(sum.join(" · "))+'</span>'+
+    '<div class="airow"><span class="sp">'+at(sum.join(" · "))+'</span>'+
       '<button class="aibtn" type="button" onclick="aiForm('+di+')">다시</button>'+
       '<button class="aibtn" type="button" onclick="aiClose('+di+')">취소</button>'+
       '<button class="aibtn go" type="button" style="background:'+kc.c+';color:#fff" onclick="aiApply('+di+')">적용</button>'+
@@ -2756,15 +2779,34 @@ function aiPreview(di,out){
 }
 
 /* ── 적용 · 되돌리기 ── */
-function aiApply(di){
-  var c=AIRES[di], day=D.days[di]; if(!c||!day) return;
+/* 예매한 것이 빠질 때 — confirm() 은 인앱 브라우저에서 막히는 일이 있어 화면 안에서 묻습니다 */
+function aiWarn(di,lost){
+  var p=aiPanel(di); if(!p) return;
+  var kc=city(dayCityList(di)[0]||"");
+  p.hidden=false;
+  p.innerHTML=
+    '<p class="aimsg er">예매해 둔 항목이 빠집니다 — '+at(lost.join(", "))+'</p>'+
+    '<p class="aimsg">그래도 적용하면 이 항목은 그날 일정에서 사라집니다. (예약 자체가 취소되지는 않습니다)</p>'+
+    '<div class="airow"><span class="sp"></span>'+
+      '<button class="aibtn" type="button" onclick="aiBack('+di+')">돌아가기</button>'+
+      '<button class="aibtn go" type="button" style="background:'+kc.c+';color:#fff" onclick="aiApply('+di+',1)">그래도 적용</button>'+
+    '</div>';
+}
+function aiBack(di){
+  var c=AIRES[di];
+  if(c&&c.raw) aiPreview(di,c.raw); else aiForm(di);
+}
+function aiApply(di,force){
+  var day=D.days[di], c=AIRES[di];
+  if(!day) return;
+  if(!c){ aiForm(di,"제안이 사라졌습니다 — 한 번 더 만들어 주세요",1); return; }
   var lost=[];
   day.items.forEach(function(it){
     if(it.trip && !c.items.some(function(x){return x.trip===it.trip})) lost.push(itemName(it)||"교통편");
     else if(it.k==="tour"&&it.ref && !c.items.some(function(x){return x.k==="tour"&&x.ref===it.ref}))
       lost.push(itemName(it)||"투어");
   });
-  if(lost.length && !confirm("예매한 항목이 빠집니다 — "+lost.join(", ")+"\n\n그래도 적용할까요?")) return;
+  if(lost.length && !force){ aiWarn(di,lost); return; }
 
   AIUNDO={di:di,items:JSON.parse(JSON.stringify(day.items)),ttl:day.ttl,sub:day.sub,
           sp:D.spots.length,ea:D.eats.length};
@@ -2788,11 +2830,16 @@ function aiApply(di){
     return o;
   });
   aiFillDur(day.items);
-  if(c.raw.ttl) day.ttl=String(c.raw.ttl);
-  if(c.raw.sub) day.sub=String(c.raw.sub);
+  var nt=aiTxt(c.raw.ttl,40), ns=aiTxt(c.raw.sub,120);
+  if(nt) day.ttl=nt;
+  if(ns) day.sub=ns;
   AIRES[di]=null; AIQ[di]="";
+  OPENDAY=di;
   save(); render();
-  toastAct(esc(day.d)+"일 일정을 바꿨습니다","되돌리기","aiUndo()",8000);
+  /* 바뀐 카드를 다시 열어 눈앞에 둡니다 — 무엇이 일어났는지 보이도록 */
+  var el=document.querySelector('details.day[data-di="'+di+'"]');
+  if(el){ el.open=true; scrollDayToTop(el); }
+  toastAct(at(day.d)+"일 일정을 바꿨습니다","되돌리기","aiUndo()",8000);
 }
 function aiUndo(){
   var u=AIUNDO; if(!u||!D.days[u.di]) return;
