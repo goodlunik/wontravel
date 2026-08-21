@@ -2712,7 +2712,25 @@ function aiClean(di,out){
     items.push(it);
   });
   var places=Object.keys(used).map(function(t){ return tmp[t]; });
+  if(aiSort(items)) warn.push("시각 순서가 어긋나 있어 시간순으로 정리했습니다");
   return { items:items, places:places, warn:warn, raw:out };
+}
+/* 시각이 거꾸로 된 항목이 있으면 시간순으로 세웁니다.
+   시각이 빈 항목은 바로 앞 항목에 붙여 둡니다 — 이동↔도착 짝이 흩어지지 않게 */
+function aiSort(items){
+  var key=[], last=0, i, off=false;
+  for(i=0;i<items.length;i++){
+    var v=items[i].t?tmin(items[i].t):last;
+    if(v<last) off=true;
+    key.push(v); last=v;
+  }
+  if(!off) return false;
+  var idx=items.map(function(it,j){ return j; });
+  idx.sort(function(a,b){ return (key[a]-key[b])||(a-b); });
+  var out=idx.map(function(j){ return items[j]; });
+  items.length=0;
+  for(i=0;i<out.length;i++) items.push(out[i]);
+  return true;
 }
 /* 이동 소요시간이 비면 앞 지점과의 거리로 추정합니다 */
 function aiFillDur(items){
@@ -2764,7 +2782,22 @@ function aiPreview(di,out){
   }).join("");
   var sum=[]; if(n.ad)sum.push("추가 "+n.ad); if(n.ch)sum.push("변경 "+n.ch);
   if(n.rm)sum.push("빠짐 "+n.rm); if(nt)sum.push("시각 "+nt);
-  if(!sum.length)sum.push("바뀐 것 없음");
+  /* 바뀌는 게 하나도 없으면 적용을 권하지 않습니다 */
+  if(!sum.length){
+    var t1=aiTxt(c.raw.ttl,40), s1=aiTxt(c.raw.sub,120);
+    if((!t1||t1===D.days[di].ttl)&&(!s1||s1===D.days[di].sub)){
+      p.innerHTML=
+        '<p class="aimsg">'+at(aiTxt(out.note,400)||"바꿀 것을 찾지 못했습니다.")+'</p>'+
+        '<p class="aimsg">지금 일정에서 <b>바뀌는 것이 없습니다.</b> 무엇을 어떻게 바꿀지 조금 더 구체적으로 적어 주세요 — '+
+        '예) “오후에 미술관 하나 넣어 줘”, “점심 식당을 다른 곳으로”.</p>'+
+        '<div class="airow"><span class="sp"></span>'+
+          '<button class="aibtn" type="button" onclick="aiClose('+di+')">닫기</button>'+
+          '<button class="aibtn go" type="button" style="background:'+kc.c+';color:#fff" onclick="aiForm('+di+')">다시 적기</button>'+
+        '</div>';
+      return;
+    }
+    sum.push("제목만 바뀜");
+  }
   p.innerHTML=
     '<p class="aimsg">'+at(aiTxt(out.note,400)||"이렇게 바꿔 봤습니다.")+'</p>'+
     (c.places.length?'<p class="aimsg">새 장소 '+c.places.length+'곳이 함께 등록됩니다 — '+
